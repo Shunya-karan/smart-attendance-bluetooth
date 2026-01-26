@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:smart_attendance_bluetooth/student/student_info.dart';
 import 'teacher/teacher_login.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -14,7 +15,7 @@ class MyApp extends StatelessWidget {
     return  MaterialApp(
       title: "Attendance App",
       debugShowCheckedModeBanner: false,
-      home: TeacherLogin(),
+      home: StudentInfo(),
       theme: ThemeData(
           fontFamily: GoogleFonts.lato().fontFamily,
         colorScheme: ColorScheme.fromSeed(
