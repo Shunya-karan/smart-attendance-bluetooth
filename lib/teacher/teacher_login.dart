@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'teacher_signup.dart';
 
@@ -11,6 +12,46 @@ class TeacherLogin extends StatefulWidget {
 
 class _TeacherLoginState extends State<TeacherLogin> {
   bool _obsecurePassword = true;
+  final passwordController=TextEditingController();
+  final emailController = TextEditingController();
+
+  @override
+  void dispose(){
+    emailController.dispose();
+    passwordController.dispose();
+    super.dispose();
+  }
+
+  void ShowErros(String msg){
+    ScaffoldMessenger.of(context).clearSnackBars();
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content:Text(msg),
+        duration: Duration(seconds: 3)
+        ));
+  }
+
+  Future<void>loginUserwithEmailandPassword()async {
+    if (emailController.text
+        .trim()
+        .isEmpty ||
+        passwordController.text
+            .trim()
+            .isEmpty) {
+      ShowErros("All fields is required");
+      return;
+    }
+    else {
+      try {
+         await FirebaseAuth.instance
+            .signInWithEmailAndPassword(
+            email: emailController.text.trim(),
+            password: passwordController.text.trim());
+        ShowErros("login Success full");
+      } on FirebaseAuthException catch (e) {
+        ShowErros("${e.message}");
+      }
+    }
+  }
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -45,6 +86,9 @@ class _TeacherLoginState extends State<TeacherLogin> {
                 SizedBox(height: 24),
 
                 TextField(
+                  controller: emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  autocorrect: false,
                   decoration: InputDecoration(
                     labelText: "Email",
                     hintText: "Enter your email",
@@ -57,6 +101,7 @@ class _TeacherLoginState extends State<TeacherLogin> {
                 ),
                 SizedBox(height: 16,),
                 TextField(
+                  controller: passwordController,
                   obscureText: _obsecurePassword,
                   decoration: InputDecoration(
                       labelText: "Password",
@@ -92,7 +137,10 @@ class _TeacherLoginState extends State<TeacherLogin> {
                 ),
                 SizedBox(height: 24),
                 ElevatedButton(
-                  onPressed: (){},
+                  onPressed: ()async{
+                   await loginUserwithEmailandPassword();
+                   print("done");
+                  },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Theme.of(context).colorScheme.primary,
                     foregroundColor: Colors.white,

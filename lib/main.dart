@@ -1,8 +1,13 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:smart_attendance_bluetooth/firebase_options.dart';
+import 'package:smart_attendance_bluetooth/teacher/dashboard.dart';
 import 'teacher/teacher_login.dart';
 import 'package:google_fonts/google_fonts.dart';
-
-void main() {
+import 'package:firebase_core/firebase_core.dart';
+void main() async{
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   runApp(const MyApp());
 }
 
@@ -15,6 +20,20 @@ class MyApp extends StatelessWidget {
       title: "Attendance App",
       debugShowCheckedModeBanner: false,
       home: TeacherLogin(),
+        // StreamBuilder(
+      //   stream: FirebaseAuth.instance.authStateChanges(),
+      //   builder: (context, asyncSnapshot) {
+      //     if(asyncSnapshot.connectionState==ConnectionState.waiting){
+      //       return Center(
+      //         child:CircularProgressIndicator() ,
+      //       );
+      //     }
+      //    if(asyncSnapshot.data!=null){
+      //      return TeacherDashboard();
+      //    }
+      //
+      //   }
+      // ),
       theme: ThemeData(
           fontFamily: GoogleFonts.lato().fontFamily,
         colorScheme: ColorScheme.fromSeed(
@@ -45,7 +64,7 @@ class MyApp extends StatelessWidget {
         ),
         inputDecorationTheme: InputDecorationTheme(
           hintStyle: TextStyle(
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.w500,
             fontSize: 16
           ),
         ),
