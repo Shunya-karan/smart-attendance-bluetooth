@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:smart_attendance_bluetooth/teacher/dashboard.dart';
 import 'teacher_signup.dart';
 
 
@@ -14,6 +15,7 @@ class _TeacherLoginState extends State<TeacherLogin> {
   bool _obsecurePassword = true;
   final passwordController=TextEditingController();
   final emailController = TextEditingController();
+  bool isLoading=false;
 
   @override
   void dispose(){
@@ -22,7 +24,7 @@ class _TeacherLoginState extends State<TeacherLogin> {
     super.dispose();
   }
 
-  void ShowErros(String msg){
+  void showMessage(String msg){
     ScaffoldMessenger.of(context).clearSnackBars();
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content:Text(msg),
@@ -31,28 +33,43 @@ class _TeacherLoginState extends State<TeacherLogin> {
   }
 
   Future<void>loginUserwithEmailandPassword()async {
+    setState(() {
+      isLoading=true;
+    });
     if (emailController.text
         .trim()
         .isEmpty ||
         passwordController.text
             .trim()
             .isEmpty) {
-      ShowErros("All fields is required");
+      showMessage("All fields are required");
       return;
     }
     else {
       try {
-         await FirebaseAuth.instance
-            .signInWithEmailAndPassword(
-            email: emailController.text.trim(),
-            password: passwordController.text.trim());
-        ShowErros("login Success full");
+        await FirebaseAuth.instance.signInWithEmailAndPassword(
+          email: emailController.text.trim(),
+          password: passwordController.text.trim(),
+        );
+        if (!mounted) return;
+
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const TeacherDashboard()),
+        );
       } on FirebaseAuthException catch (e) {
-        ShowErros("${e.message}");
+        showMessage(e.message ?? "Login failed");
+      }
+      finally{
+        if(mounted){
+          setState(() {
+            isLoading=false;
+          });
+        }
       }
     }
   }
-  @override
+      @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
@@ -88,6 +105,7 @@ class _TeacherLoginState extends State<TeacherLogin> {
                 TextField(
                   controller: emailController,
                   keyboardType: TextInputType.emailAddress,
+                  enableSuggestions: false,
                   autocorrect: false,
                   decoration: InputDecoration(
                     labelText: "Email",
@@ -137,9 +155,10 @@ class _TeacherLoginState extends State<TeacherLogin> {
                 ),
                 SizedBox(height: 24),
                 ElevatedButton(
-                  onPressed: ()async{
+                  onPressed:isLoading?
+                      null
+                        :()async{
                    await loginUserwithEmailandPassword();
-                   print("done");
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Theme.of(context).colorScheme.primary,
@@ -150,7 +169,12 @@ class _TeacherLoginState extends State<TeacherLogin> {
                     ),
                     elevation: 2,
                   ),
-                  child: Text("Log in",
+                  child: isLoading
+                      ?SizedBox(
+                    height: 20,width: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2,color: Colors.white)
+                  )
+                      :Text("Log in",
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
                     color: Colors.white
                   ),),

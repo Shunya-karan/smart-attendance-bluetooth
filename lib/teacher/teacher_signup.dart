@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:smart_attendance_bluetooth/teacher/dashboard.dart';
 import 'package:smart_attendance_bluetooth/teacher/teacher_login.dart';
 import 'departments_list.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -21,6 +22,7 @@ class _TeacherSignupState extends State<TeacherSignup> {
   final confirmPasswordController =TextEditingController();
   final nameController=TextEditingController();
   final emailController=TextEditingController();
+  bool isLoading = false;
 
   @override
   void dispose(){
@@ -30,7 +32,14 @@ class _TeacherSignupState extends State<TeacherSignup> {
     confirmPasswordController.dispose();
     super.dispose();
   }
-  void showError(String msg) {
+  void ClearingFields(){
+    nameController.clear();
+    passwordController.clear();
+    confirmPasswordController.clear();
+    emailController.clear();
+    selectedDepartment = null;
+  }
+  void showMessage(String msg) {
     ScaffoldMessenger.of(context).clearSnackBars();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -41,15 +50,20 @@ class _TeacherSignupState extends State<TeacherSignup> {
   }
 
   Future<void> createUserWithEmailAnsPassword() async{
+    setState(() {
+      isLoading = true;
+    });
+
     if (nameController.text.trim().isEmpty ||
         emailController.text.trim().isEmpty ||
         passwordController.text.trim().isEmpty ||
+        confirmPasswordController.text.trim().isEmpty ||
         selectedDepartment == null) {
-      showError("All fields are required");
+      showMessage("All fields are required");
       return;
     }
     else if(passwordController.text.trim()!=confirmPasswordController.text.trim()){
-      showError("Password do not match");
+      showMessage("Passwords do not match");
       return;
     }
     else{
@@ -67,10 +81,21 @@ class _TeacherSignupState extends State<TeacherSignup> {
           "role":"teacher",
           "createdAt":FieldValue.serverTimestamp(),
         });
-        print("teacher $userCredential");
+        ClearingFields();
+        if(!mounted) return;
+        Navigator.pushReplacement(context, MaterialPageRoute(
+            builder: (context)=>TeacherDashboard()
+        )
+        );
+
       }on FirebaseAuthException catch(e){
-        showError("${e.message}");
+        showMessage("${e.message}");
         return;
+      }
+      finally{
+        if(mounted){
+          setState(() => isLoading = false);
+        }
       }
     }
     }
@@ -125,6 +150,8 @@ class _TeacherSignupState extends State<TeacherSignup> {
                 TextField(
                   controller: emailController,
                   keyboardType: TextInputType.emailAddress,
+                  enableSuggestions: false,
+                  autocorrect: false,
                   decoration: InputDecoration(
                       labelText: "Email",
                       hintText: "Enter your email",
@@ -233,7 +260,9 @@ class _TeacherSignupState extends State<TeacherSignup> {
                 SizedBox(height: 24),
  // ------------------Buttons-----------
                 ElevatedButton(
-                  onPressed: ()async{
+                  onPressed:isLoading
+                      ?null
+                      :()async{
                     await createUserWithEmailAnsPassword();
                   },
                   style: ElevatedButton.styleFrom(
@@ -245,7 +274,14 @@ class _TeacherSignupState extends State<TeacherSignup> {
                     ),
                     elevation: 2,
                   ),
-                  child: Text("Sign up",
+                  child: isLoading
+                  ?SizedBox(
+                    height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2,
+                        color: Colors.white)
+                  ):
+                  Text("Sign up",
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
                         color: Colors.white
                     ),),

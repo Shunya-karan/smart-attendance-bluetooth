@@ -6,7 +6,17 @@ class TeacherDashboard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Text("hello"),
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        title: Text("Teacher dashboard"),
+      ),
+
+      body: Column(
+        children: [
+          Text("hello"),
+      ],
+      ),
+
     );
   }
 }

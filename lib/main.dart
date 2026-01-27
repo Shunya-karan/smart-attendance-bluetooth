@@ -19,21 +19,20 @@ class MyApp extends StatelessWidget {
     return  MaterialApp(
       title: "Attendance App",
       debugShowCheckedModeBanner: false,
-      home: TeacherLogin(),
-        // StreamBuilder(
-      //   stream: FirebaseAuth.instance.authStateChanges(),
-      //   builder: (context, asyncSnapshot) {
-      //     if(asyncSnapshot.connectionState==ConnectionState.waiting){
-      //       return Center(
-      //         child:CircularProgressIndicator() ,
-      //       );
-      //     }
-      //    if(asyncSnapshot.data!=null){
-      //      return TeacherDashboard();
-      //    }
-      //
-      //   }
-      // ),
+      home: StreamBuilder(
+        stream: FirebaseAuth.instance.authStateChanges(),
+        builder: (context, asyncSnapshot){
+          if(asyncSnapshot.connectionState==ConnectionState.waiting){
+            return Center(
+              child:CircularProgressIndicator() ,
+            );
+          }
+         if(asyncSnapshot.data!=null){
+           return TeacherDashboard();
+         }
+      return TeacherLogin();
+        }
+      ),
       theme: ThemeData(
           fontFamily: GoogleFonts.lato().fontFamily,
         colorScheme: ColorScheme.fromSeed(
