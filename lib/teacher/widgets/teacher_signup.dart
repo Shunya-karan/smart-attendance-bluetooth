@@ -1,7 +1,9 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:smart_attendance_bluetooth/teacher/dashboard.dart';
-import 'package:smart_attendance_bluetooth/teacher/teacher_login.dart';
+import 'package:smart_attendance_bluetooth/services/firebase_service.dart';
+import 'package:smart_attendance_bluetooth/teacher/layout.dart';
+import 'package:smart_attendance_bluetooth/teacher/widgets/dashboard.dart';
+import 'package:smart_attendance_bluetooth/teacher/widgets/teacher_login.dart';
 import 'departments_list.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -15,6 +17,7 @@ class TeacherSignup extends StatefulWidget {
 
 
 class _TeacherSignupState extends State<TeacherSignup> {
+  final firebaseService= FirebaseService();
   bool _obsecurePassword = true;
   bool _ConfobsecurePassword = true;
   String? selectedDepartment;
@@ -68,12 +71,8 @@ class _TeacherSignupState extends State<TeacherSignup> {
     }
     else{
       try{
-        final userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
-            email: emailController.text.trim(),
-            password: passwordController.text.trim()
-        );
+        final userCredential=await firebaseService.signupTeacher(emailController.text.trim(), passwordController.text.trim());
         final uid=userCredential.user!.uid;
-
         await FirebaseFirestore.instance.collection("teachers").doc(uid).set({
           "name":nameController.text.trim(),
           "email":emailController.text.trim(),
@@ -84,7 +83,7 @@ class _TeacherSignupState extends State<TeacherSignup> {
         ClearingFields();
         if(!mounted) return;
         Navigator.pushReplacement(context, MaterialPageRoute(
-            builder: (context)=>TeacherDashboard()
+            builder: (context)=>teacher_Layout()
         )
         );
 

@@ -1,7 +1,9 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:smart_attendance_bluetooth/teacher/dashboard.dart';
-import 'teacher_signup.dart';
+import 'package:smart_attendance_bluetooth/services/firebase_service.dart';
+import 'package:smart_attendance_bluetooth/teacher/layout.dart';
+import 'package:smart_attendance_bluetooth/teacher/widgets/dashboard.dart';
+import '../widgets/teacher_signup.dart';
 
 
 class TeacherLogin extends StatefulWidget {
@@ -12,6 +14,7 @@ class TeacherLogin extends StatefulWidget {
 }
 
 class _TeacherLoginState extends State<TeacherLogin> {
+  final firebaseService=FirebaseService();
   bool _obsecurePassword = true;
   final passwordController=TextEditingController();
   final emailController = TextEditingController();
@@ -47,15 +50,15 @@ class _TeacherLoginState extends State<TeacherLogin> {
     }
     else {
       try {
-        await FirebaseAuth.instance.signInWithEmailAndPassword(
-          email: emailController.text.trim(),
-          password: passwordController.text.trim(),
+        await firebaseService.loginTeacher(
+          emailController.text.trim(),
+          passwordController.text.trim()
         );
         if (!mounted) return;
 
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const TeacherDashboard()),
+          MaterialPageRoute(builder: (context) => const teacher_Layout()),
         );
       } on FirebaseAuthException catch (e) {
         showMessage(e.message ?? "Login failed");

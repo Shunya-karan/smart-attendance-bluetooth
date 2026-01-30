@@ -1,8 +1,9 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:smart_attendance_bluetooth/firebase_options.dart';
-import 'package:smart_attendance_bluetooth/teacher/dashboard.dart';
-import 'teacher/teacher_login.dart';
+import 'package:smart_attendance_bluetooth/teacher/widgets/dashboard.dart';
+import 'package:smart_attendance_bluetooth/teacher/layout.dart';
+import 'teacher/widgets/teacher_login.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_core/firebase_core.dart';
 void main() async{
@@ -19,20 +20,25 @@ class MyApp extends StatelessWidget {
     return  MaterialApp(
       title: "Attendance App",
       debugShowCheckedModeBanner: false,
-      home: StreamBuilder(
-        stream: FirebaseAuth.instance.authStateChanges(),
-        builder: (context, asyncSnapshot){
-          if(asyncSnapshot.connectionState==ConnectionState.waiting){
-            return Center(
-              child:CircularProgressIndicator() ,
-            );
-          }
-         if(asyncSnapshot.data!=null){
-           return TeacherDashboard();
-         }
-      return TeacherLogin();
-        }
-      ),
+      home: FirebaseAuth.instance.currentUser!=null
+          ? Center(
+            child:CircularProgressIndicator() ,
+          ):TeacherLogin(),
+
+      // StreamBuilder(
+      //   stream: FirebaseAuth.instance.authStateChanges(),
+      //   builder: (context, asyncSnapshot){
+      //     if(asyncSnapshot.connectionState==ConnectionState.waiting){
+      //       return Center(
+      //         child:CircularProgressIndicator() ,
+      //       );
+      //     }
+      //    if(asyncSnapshot.data!=null){
+      //      return teacher_Layout();
+      //    }
+      // return TeacherLogin();
+      //   }
+      // ),
       theme: ThemeData(
           fontFamily: GoogleFonts.lato().fontFamily,
         colorScheme: ColorScheme.fromSeed(
