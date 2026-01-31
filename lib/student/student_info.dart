@@ -1,13 +1,42 @@
 import 'package:flutter/material.dart';
+import 'package:smart_attendance_bluetooth/student/student_home.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class StudentInfo extends StatefulWidget{
   const StudentInfo ({super.key});
+
 
   @override
   State<StudentInfo> createState() => _StudentInfoState();
 }
 
+
 class _StudentInfoState extends State<StudentInfo> {
+  TextEditingController name = TextEditingController();
+  TextEditingController seatNumber = TextEditingController();
+
+Future<void> saveStudentInfo(String name, String seatNumber) async {
+  final prefs = await SharedPreferences.getInstance();
+    await prefs.setString("name", name);
+    await prefs.setString("seatNumber", seatNumber);
+    await prefs.setBool("Logged_in", true);
+    
+    Navigator.pushReplacement(
+      context, 
+      MaterialPageRoute(builder: (context) => StudentHome()),
+    );
+  }
+
+  submit(String name, String seatNumber) async{
+    if(name.isEmpty || seatNumber.isEmpty || name.trim().isEmpty || seatNumber.trim().isEmpty){
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Please fill all the details", style: TextStyle(color: Colors.red),))
+      );
+      return;
+    }
+    await saveStudentInfo(name, seatNumber);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -45,6 +74,7 @@ class _StudentInfoState extends State<StudentInfo> {
                 SizedBox(height: 20),
 
                 TextField(
+                  controller: name,
                   decoration: InputDecoration(
                     labelText: "Name",
                     hintText: "Enter your name",
@@ -59,6 +89,7 @@ class _StudentInfoState extends State<StudentInfo> {
                 SizedBox(height: 20),
 
                 TextField(
+                  controller: seatNumber,
                   decoration: InputDecoration(
                     labelText: "Seat Number",
                     hintText: "Enter your seat number",
@@ -86,8 +117,10 @@ class _StudentInfoState extends State<StudentInfo> {
 
                 SizedBox(height: 271,),
 
-                ElevatedButton(onPressed: () {},
-                 child: Text("Continue",),
+                ElevatedButton(
+                  onPressed: () async {
+                    await submit(name.text, seatNumber.text);
+                  },
                  style: ElevatedButton.styleFrom(
                    backgroundColor: Theme.of(context).colorScheme.primary,
                    foregroundColor: Colors.white,
@@ -96,7 +129,13 @@ class _StudentInfoState extends State<StudentInfo> {
                      borderRadius: BorderRadius.circular(10),
                    ),
                    elevation: 2,
-                 )
+                 ),
+                 child: Text("Continue",
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold
+                  ),
+                 ),
                 ),
             ],
           )

@@ -1,4 +1,21 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-feature
+    android:name="android.hardware.bluetooth_le"
+    android:required="false" />
+
+
+    <!-- Required for all Android versions -->
+    <uses-permission android:name="android.permission.BLUETOOTH" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
+
+    <!-- Required for Android 12+ -->
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
+
+    <!-- Needed by flutter_blue_plus -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+
     <application
         android:label="smart_attendance_bluetooth"
         android:name="${applicationName}"

@@ -1,11 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:smart_attendance_bluetooth/student/student_home.dart';
 import 'package:smart_attendance_bluetooth/student/student_info.dart';
 import 'teacher/teacher_login.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   runApp(const MyApp());
 }
+
+Future<bool> hasStudentInfo() async {
+  final prefs = await SharedPreferences.getInstance();
+  return prefs.getString("name") != null &&
+      prefs.getString("seatNumber") != null;
+}
+
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -15,7 +24,22 @@ class MyApp extends StatelessWidget {
     return  MaterialApp(
       title: "Attendance App",
       debugShowCheckedModeBanner: false,
-      home: StudentInfo(),
+      home: FutureBuilder<bool>(
+        future: hasStudentInfo(),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) {
+            return const Scaffold(
+              body: Center(child: CircularProgressIndicator()),
+            );
+          }
+
+          if (snapshot.data == true) {
+            return const StudentHome();
+          } else {
+            return const StudentInfo();
+          }
+        },
+      ),
       theme: ThemeData(
           fontFamily: GoogleFonts.lato().fontFamily,
         colorScheme: ColorScheme.fromSeed(
