@@ -4,6 +4,8 @@ import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:smart_attendance_bluetooth/student/student_profile.dart';
+import 'package:fl_chart/fl_chart.dart';
+import 'package:percent_indicator/percent_indicator.dart';
 import 'student_info.dart';
 import 'student_profile.dart';
 
@@ -95,6 +97,58 @@ class _StudentHomeState extends State<StudentHome> {
         seatNumber = n2;
       });
     }
+  }
+
+  Widget buildChart(int perc, String title){
+    return Container(
+      height: 120, width: 100,
+      color: Colors.transparent,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          CircularPercentIndicator(
+              radius: 40,
+              lineWidth: 10,
+              percent: perc/100,
+              center: Text("$perc %"),
+              progressColor: perc >= 80 && perc <= 100? Colors.green : perc >= 75 && perc < 80 ? Colors.orange : Colors.red,
+              backgroundColor: Colors.grey.shade300,
+              circularStrokeCap: CircularStrokeCap.round,
+            ),
+            SizedBox(height: 5),
+                            Text(title,
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black,
+                              ),
+                            ),
+        ],
+      ),
+    );
+  }
+
+  Widget buildListTile(String subject, String time, bool present){
+    return ListTile(
+      leading: Icon(present ? Icons.check_rounded :  Icons.close_rounded,
+        size: 30,
+        color: present ? Colors.green : Colors.red,
+        weight: 2000,
+      ),
+      title: Text(subject,
+        style: TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+          color: Colors.black,
+        ),
+      ),
+      subtitle: Text(time,
+        style: TextStyle(
+          fontSize: 16,
+          color: Colors.grey,
+        ),
+      ),
+    );
   }
 
   @override
@@ -215,7 +269,7 @@ class _StudentHomeState extends State<StudentHome> {
                 ),
                 ),
                 SizedBox(height: 20),
-                Container(height: 100, width: 400,
+                Container(height: 370, width: 400,
                 decoration: BoxDecoration(
                   border: Border.all(color: Colors.blueAccent, width: 1.3),
                   borderRadius: BorderRadius.circular(12),
@@ -246,11 +300,85 @@ class _StudentHomeState extends State<StudentHome> {
                           color: Colors.blue,
                          ),),)
                       ]
-                    )
-                  ],
+                    ),
+                    SizedBox(height: 10),
+                    Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            buildChart(75, "Overall"),
+                            SizedBox(width: 20),
+                            buildChart(100, "Month"),
+                            SizedBox(width: 20),
+                            buildChart(50, "Week"),
+                          ]
+                        ),
+                      SizedBox(width: 20),
+                      Divider(
+                        color: Colors.grey,
+                        thickness: 1,
+                        indent: 10,
+                        endIndent: 10,
+                      ),
+                      SizedBox(height: 10),
+                      Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Column(
+                              children: [
+                                Text("Max"),
+                                SizedBox(height: 7,),
+                                buildChart(100, "Maths")
+                              ],
+                            ),
+                            SizedBox(width: 40),
+                            Column(
+                              children: [
+                                Text("Min"),
+                                SizedBox(height: 7,),
+                                buildChart(53, "IoT")
+                              ],
+                            ),
+                          ]
+                        ),
+                      ],
+                    
                   ),
                 ),
-                SizedBox(height: 500),
+                SizedBox(height: 20),
+                Container(width: 400,
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.blueAccent, width: 1.3),
+                  borderRadius: BorderRadius.circular(12),
+                  color: const Color.fromARGB(255, 236, 250, 255),
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  children: [
+                    SizedBox(height: 10),
+                    Row(children: [
+                      SizedBox(width: 15,),
+                        Icon(Icons.today_rounded,
+                          size: 24,
+                          color: const Color.fromARGB(255, 203, 124, 183),
+                        ),
+                        SizedBox(width: 10),
+                        Text("Today's Attendance",
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black,
+                          ),
+                        ),
+                    ],),
+                    SizedBox(height: 20),
+                    buildListTile("Mathematics", "9:00 AM - 10:00 AM", true),
+                    buildListTile("IoT", "10:15 AM - 11:15 AM", false),  
+                    buildListTile("Data Structures", "11:30 AM - 12:30 PM", true),
+                    SizedBox(height: 20),
+                    
+                  ]
+                ),
+                )
               ],
             ),
           ),
