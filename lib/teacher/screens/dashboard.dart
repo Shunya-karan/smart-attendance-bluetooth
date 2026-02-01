@@ -58,7 +58,7 @@ class TeacherDashboard extends StatelessWidget {
               SizedBox(height: 10),
 
               //Bluetooth Status
-              BlutoothStatus(),
+              BluetoothStatusCard(),
               //Notification
 
               NotificationBox(message: "Next Session At 10:00 Am in SYCS class",),
@@ -121,16 +121,19 @@ class TeacherDashboard extends StatelessWidget {
                 height: 430,
                 width: double.infinity,
                 decoration: BoxDecoration(
-                  color: Color.fromRGBO(227, 225, 225, 0.8),
+                  color: Colors.white,
                   borderRadius: BorderRadius.circular(5),
                   boxShadow: [
                     BoxShadow(
-                      blurRadius: 90,
-                      offset: Offset(1, 1),
-                      color: Colors.grey
+                      blurRadius: 10,
+                      spreadRadius: 1,
+                      offset: Offset(0,6),
+                      color: Color(0x14000000)
                     ),
-                  ]
+                  ],
+                  // border: Border.all(color: Colors.tealAccent.shade200)
                 ),
+
                 child: QuickAction()
               ),
 

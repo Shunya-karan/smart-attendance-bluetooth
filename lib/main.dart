@@ -1,9 +1,9 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:smart_attendance_bluetooth/firebase_options.dart';
-import 'package:smart_attendance_bluetooth/teacher/widgets/dashboard.dart';
+import 'package:smart_attendance_bluetooth/teacher/screens/dashboard.dart';
 import 'package:smart_attendance_bluetooth/teacher/layout.dart';
-import 'teacher/widgets/teacher_login.dart';
+import 'teacher/screens/teacher_login.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_core/firebase_core.dart';
 void main() async{
@@ -22,7 +22,7 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       home: FirebaseAuth.instance.currentUser!=null
           ? Center(
-            child:CircularProgressIndicator() ,
+            child:teacher_Layout() ,
           ):TeacherLogin(),
 
       // StreamBuilder(

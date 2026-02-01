@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:smart_attendance_bluetooth/teacher/widgets/dashboard.dart';
-import 'package:smart_attendance_bluetooth/teacher/widgets/profile.dart';
+import 'package:smart_attendance_bluetooth/teacher/screens/dashboard.dart';
+import 'package:smart_attendance_bluetooth/teacher/screens/profile.dart';
 
 
 class teacher_Layout extends StatefulWidget {
@@ -24,7 +24,6 @@ class _teacher_LayoutState extends State<teacher_Layout> {
         children:Pages,
       ),
       bottomNavigationBar:BottomNavigationBar(
-
           selectedFontSize: 14,
           unselectedFontSize: 10,
           selectedItemColor: Colors.teal,

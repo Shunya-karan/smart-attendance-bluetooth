@@ -1,34 +1,255 @@
+import 'dart:ffi';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:geolocator/geolocator.dart';
 
-class BlutoothStatus extends StatefulWidget {
-
-  const BlutoothStatus({super.key});
+class BluetoothStatusCard extends StatefulWidget {
+  const BluetoothStatusCard({super.key});
 
   @override
-  State<BlutoothStatus> createState() => _BlutoothStatusState();
+  State<BluetoothStatusCard> createState() => _BluetoothStatusCardState();
 }
 
-class _BlutoothStatusState extends State<BlutoothStatus> {
-  bool bluetooth_status=false;
+class _BluetoothStatusCardState extends State<BluetoothStatusCard> {
+  bool bluetoothOn = false;
+  bool locationGranted = false;
+  bool locationServices=false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadStatus();
+  }
+  Future askPermissions() async {
+    await Permission.bluetoothScan.request();
+    await Permission.bluetoothConnect.request();
+    await Permission.bluetooth.request(); // optional for older devices
+    await Permission.locationWhenInUse.request(); // fine location
+  }
+
+  Future<void> _loadStatus() async {
+    final btState = await FlutterBluetoothSerial.instance.state;
+    final loc = await Permission.locationWhenInUse.status;
+    final serviceEnabled =await Geolocator.isLocationServiceEnabled();
+    setState(() {
+      bluetoothOn = btState == BluetoothState.STATE_ON;
+      locationGranted = loc.isGranted;
+      locationServices=serviceEnabled;
+    });
+  }
+
+  Future<void> _toggleBluetooth(bool value) async {
+    if (value) {
+      await askPermissions();
+      await FlutterBluetoothSerial.instance.requestEnable();
+    } else {
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text("Bluetooth OFF"),
+          content: const Text(
+            "For security reasons, Bluetooth cannot be turned off directly from the app.\n\nPlease turn it off from Settings.",
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Cancel"),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.pop(context);
+                await FlutterBluetoothSerial.instance.openSettings();
+                FlutterBluetoothSerial.instance.onStateChanged().listen((btState) {
+                  setState(() {
+                    bluetoothOn = btState == BluetoothState.STATE_ON;
+                  });
+                });
+                },
+              child: const Text("Open Settings"),
+            ),
+          ],
+      ),
+
+      );
+    }
+    await _loadStatus();
+  }
+
+  Future<void> ensureLocationServiceOn() async {
+    bool enabled = await Geolocator.isLocationServiceEnabled();
+
+    if (!enabled) {
+      await Geolocator.openLocationSettings();
+    }
+    enabled=await Geolocator.isLocationServiceEnabled();
+    setState(() {
+      locationServices=enabled;
+    });
+  }
+  Future<void> _requestLocation() async {
+    final result = await Permission.locationWhenInUse.request();
+    debugPrint("Location result: $result");
+
+    setState(() => locationGranted = result.isGranted);
+
+    if (result.isGranted){
+      await ensureLocationServiceOn();
+      await _loadStatus();
+    }
+
+    if (result.isDenied) {
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text("Location Required"),
+          content: const Text(
+            "Location permission is required for Bluetooth scanning.\n\nPlease allow Location permission.",
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("OK"),
+            ),
+          ],
+        ),
+      );
+    }
+    if (result.isPermanentlyDenied) {
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text("Allow Location from Settings"),
+          content: const Text(
+            "You have permanently denied location permission.\n\nOpen Settings and allow it manually.",
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Cancel"),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.pop(context);
+                await openAppSettings();
+                await _loadStatus();
+              },
+              child: const Text("Open Settings"),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
+
+
 
   @override
   Widget build(BuildContext context) {
+    final scanReady = bluetoothOn && locationGranted && locationServices;
+
     return Container(
-      height: 60,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
+      padding:  EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: scanReady ? Colors.green : Colors.red,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text("Bluetooth Status:",
-          style: Theme.of(context).textTheme.titleSmall,),
-          IconButton(onPressed: (){
-            setState(() {
-              bluetooth_status=!bluetooth_status;
-            });
-          }, icon: Icon(
-            bluetooth_status?
-            Icons.toggle_on:Icons.toggle_off_sharp,size: 50,
-          color:bluetooth_status?
-          Colors.green:Colors.red))
+          // Bluetooth Switch
+          Row(
+            children: [
+               Icon(Icons.settings_bluetooth, size: 20),
+               SizedBox(width: 10),
+               Expanded(
+                child: Text(
+                  "Bluetooth",
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                ),
+              ),
+              Text(bluetoothOn ? "ON" : "OFF",
+                  style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: bluetoothOn ? Colors.green : Colors.red)),
+
+              Switch(
+                value: bluetoothOn,
+                onChanged: _toggleBluetooth,
+              ),
+            ],
+          ),
+
+          // Location Button
+          Row(
+            children: [
+               Icon(Icons.location_on, size: 20),
+               SizedBox(width: 10),
+               Expanded(
+                child: Text(
+                  "Location Permission",
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                ),
+              ),
+              Text(locationGranted ? "GRANTED" : "DENIED",
+                  style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: locationGranted ? Colors.green : Colors.red)),
+               SizedBox(width: 8),
+              ElevatedButton(
+                onPressed: locationGranted ? null : _requestLocation,
+                style: ElevatedButton.styleFrom(
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                  padding:
+                   EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                ),
+                child: Text(locationGranted ? "Done" : "Allow"),
+              ),
+            ],
+          ),
+          Row(
+              children: [
+                Icon(Icons.location_pin),
+                SizedBox(width: 8,),
+                Expanded(
+                  child: Text("Location Services",
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                  ),
+                ),
+                ElevatedButton(onPressed:locationServices?null:ensureLocationServiceOn,
+                    style: ElevatedButton.styleFrom(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadiusGeometry.circular(10)
+                      ),
+                      padding: EdgeInsets.symmetric(horizontal: 10,vertical: 8),
+                    ),
+                    child: Text(locationServices?"ON️":"Turn ON",
+                    style: TextStyle(
+                    color: locationServices
+                            ?Colors.green
+                            :Colors.red)
+                ),)
+
+              ],
+          ),
+
+           SizedBox(height: 6),
+           Text(
+            scanReady?
+            "Ready to scan nearby student devices"
+            :"Required for scanning nearby student devices.",
+            style: TextStyle(fontSize: 11,
+                color: scanReady
+                    ?Colors.green
+                    :Colors.red
+            ),
+          ),
         ],
       ),
     );

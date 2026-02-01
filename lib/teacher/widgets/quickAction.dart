@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:smart_attendance_bluetooth/teacher/screens/start_attendance.dart';
 
 class QuickAction extends StatelessWidget {
   const QuickAction({super.key});
@@ -23,7 +24,10 @@ class QuickAction extends StatelessWidget {
           height: 60,
             width: 80,
             child: ElevatedButton(
-              onPressed: () {},
+              onPressed: (){
+                Navigator.push(context, MaterialPageRoute(builder: (context)=>
+                StartAttendance()));
+                },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.white,
                 foregroundColor: Colors.black87,
@@ -37,8 +41,8 @@ class QuickAction extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(
-                    Icons.person_add_alt_1_outlined,
-                    color: Theme.of(context).colorScheme.secondary,
+                    Icons.person_add_alt_1,
+                    color: Colors.green,
                     size: 30,
                   ),
                 ],
@@ -77,8 +81,8 @@ class QuickAction extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Icon(
-                            Icons.history_outlined,
-                            color: Theme.of(context).colorScheme.secondary,
+                            Icons.history_sharp,
+                            color: Colors.redAccent,
                             size: 30,
                           ),
                         ],
@@ -118,8 +122,8 @@ class QuickAction extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Icon(
-                            Icons.school,
-                            color: Theme.of(context).colorScheme.secondary,
+                            Icons.school_rounded,
+                            color: Colors.blueAccent,
                             size: 30,
                           ),
                         ],
@@ -165,8 +169,8 @@ class QuickAction extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Icon(
-                            Icons.class_rounded,
-                            color:Theme.of(context).colorScheme.secondary,
+                            Icons.class_sharp,
+                            color:Colors.blue,
                             size: 30,
                           ),
                         ],
@@ -205,8 +209,8 @@ class QuickAction extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Icon(
-                            Icons.report_gmailerrorred_outlined,
-                            color: Theme.of(context).colorScheme.secondary,
+                            Icons.report_gmailerrorred,
+                            color: Colors.orange,
                             size: 30,
                           ),
                         ],
@@ -247,7 +251,7 @@ class QuickAction extends StatelessWidget {
                         children: [
                           Icon(
                             Icons.live_tv,
-                            color: Theme.of(context).colorScheme.secondary,
+                            color: Colors.purpleAccent,
                             size: 30,
                           ),
                         ],
@@ -293,8 +297,8 @@ class QuickAction extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Icon(
-                            Icons.create,
-                            color:Theme.of(context).colorScheme.secondary,
+                            Icons.bluetooth,
+                            color:Colors.pinkAccent,
                             size: 30,
                           ),
                         ],
@@ -303,7 +307,7 @@ class QuickAction extends StatelessWidget {
                   ),
                   SizedBox(height: 3,),
                   Text(
-                    "Create\nClass",
+                    "Bluetooth\nPanel",
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.normal,
                         fontSize: 15
@@ -333,8 +337,8 @@ class QuickAction extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Icon(
-                            Icons.import_export,
-                            color: Theme.of(context).colorScheme.secondary,
+                            Icons.add_alert_rounded,
+                            color: Colors.red[900],
                             size: 30,
                           ),
                         ],
@@ -343,52 +347,10 @@ class QuickAction extends StatelessWidget {
                   ),
                   SizedBox(height: 3,),
                   Text(
-                    "Import\nCSV",
+                    "Proxy\nAlerts",
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.normal,
                         fontSize: 15
-                    ),
-                  ),
-                ],
-              ),
-
-              //Attendance History Button
-              SizedBox(width: spacing,),
-              Column(
-                children: [
-                  SizedBox(
-                    height: 60,
-                    width: 80,
-                    child: ElevatedButton(
-                      onPressed: () {},
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: Colors.black87,
-                        elevation: 3,
-                        shadowColor: Colors.black26,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                      ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.import_export_sharp,
-                            color: Theme.of(context).colorScheme.secondary,
-                            size: 30,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  SizedBox(height: 3,),
-                  Text(
-                    "Export\nAttendance",
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.normal,
-                        fontSize: 15
-
                     ),
                   ),
                 ],
