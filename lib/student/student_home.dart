@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:smart_attendance_bluetooth/student/student_profile.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:percent_indicator/percent_indicator.dart';
+import 'package:smart_attendance_bluetooth/student/student_scan.dart';
 import 'student_info.dart';
 import 'student_profile.dart';
 
@@ -45,39 +46,9 @@ class _StudentHomeState extends State<StudentHome> {
       setState(() {
         isBtOn = btOn;
       });
-
-      if (!btOn && !dialogShown) {
-        dialogShown = true;
-        _showBtDialog();
-      }
-
-      if (btOn) {
-        dialogShown = false;
-        if (Navigator.canPop(context)) {
-          Navigator.pop(context);
-        }
-      }
     });
   }
 
-  void _showBtDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => AlertDialog(
-        title: const Text("Bluetooth Required"),
-        content: const Text("Please turn ON Bluetooth to continue attendance."),
-        actions: [
-          TextButton(
-            onPressed: () {
-              AppSettings.openAppSettings(type: AppSettingsType.bluetooth);
-            },
-            child: const Text("Turn On"),
-          ),
-        ],
-      ),
-    );
-  }
 
   Future<void> _checkStudentInfo() async {
     final prefs = await SharedPreferences.getInstance();
@@ -99,55 +70,58 @@ class _StudentHomeState extends State<StudentHome> {
     }
   }
 
-  Widget buildChart(int perc, String title){
+  Widget buildChart(int perc, String title) {
     return Container(
-      height: 120, width: 100,
+      height: 120,
+      width: 100,
       color: Colors.transparent,
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           CircularPercentIndicator(
-              radius: 40,
-              lineWidth: 10,
-              percent: perc/100,
-              center: Text("$perc %"),
-              progressColor: perc >= 80 && perc <= 100? Colors.green : perc >= 75 && perc < 80 ? Colors.orange : Colors.red,
-              backgroundColor: Colors.grey.shade300,
-              circularStrokeCap: CircularStrokeCap.round,
+            radius: 40,
+            lineWidth: 10,
+            percent: perc / 100,
+            center: Text("$perc %"),
+            progressColor: perc >= 80 && perc <= 100
+                ? Colors.green
+                : perc >= 75 && perc < 80
+                ? Colors.orange
+                : Colors.red,
+            backgroundColor: Colors.grey.shade300,
+            circularStrokeCap: CircularStrokeCap.round,
+          ),
+          SizedBox(height: 5),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.black,
             ),
-            SizedBox(height: 5),
-                            Text(title,
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black,
-                              ),
-                            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget buildListTile(String subject, String time, bool present){
+  Widget buildListTile(String subject, String time, bool present) {
     return ListTile(
-      leading: Icon(present ? Icons.check_rounded :  Icons.close_rounded,
+      leading: Icon(
+        present ? Icons.check_rounded : Icons.close_rounded,
         size: 30,
         color: present ? Colors.green : Colors.red,
         weight: 2000,
       ),
-      title: Text(subject,
+      title: Text(
+        subject,
         style: TextStyle(
           fontSize: 20,
           fontWeight: FontWeight.bold,
           color: Colors.black,
         ),
       ),
-      subtitle: Text(time,
-        style: TextStyle(
-          fontSize: 16,
-          color: Colors.grey,
-        ),
-      ),
+      subtitle: Text(time, style: TextStyle(fontSize: 16, color: Colors.grey)),
     );
   }
 
@@ -168,150 +142,178 @@ class _StudentHomeState extends State<StudentHome> {
                       mainAxisAlignment: MainAxisAlignment.start,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Container(height: 35, width: 280,
-                        child: Text(
-                          name.toUpperCase(),
-                          style: TextStyle(
-                            fontSize: 30,
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context).colorScheme.primary,
+                        Container(
+                          height: 35,
+                          width: 280,
+                          child: Text(
+                            name.toUpperCase(),
+                            style: TextStyle(
+                              fontSize: 30,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
                           ),
                         ),
-                        ),
-                        Container(height: 20, width: 280,
-                        child: Text(
-                          seatNumber,
-                          style: TextStyle(
-                            fontSize: 15 ,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.grey,
+                        Container(
+                          height: 20,
+                          width: 280,
+                          child: Text(
+                            seatNumber,
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.grey,
+                            ),
                           ),
                         ),
-                        )
-                        
                       ],
                     ),
                     IconButton(
                       onPressed: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (context) => StudentProfile()));
+                          MaterialPageRoute(
+                            builder: (context) => StudentProfile(),
+                          ),
+                        );
                       },
                       icon: Icon(
-                      Icons.person_rounded,
-                      size: 80,
-                      color: Theme.of(context).colorScheme.primary,
-                      )
+                        Icons.person_rounded,
+                        size: 80,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 20),
-                Container(height: 100, width: 400,
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.blueAccent, width: 1.3),
-                  borderRadius: BorderRadius.circular(12),
-                  color: const Color.fromARGB(255, 236, 250, 255),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  children: [
-                    SizedBox(width: 10,),
-                    Icon(isBtOn ? Icons.bluetooth_rounded : Icons.bluetooth_disabled_rounded,
-                      size: 40,
-                      color: isBtOn ? Colors.blue : Colors.red,
-                    ),
-                    SizedBox(width: 10),
-                    Text("Bluetooth",
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black,
+                Container(
+                  height: 100,
+                  width: 400,
+                  decoration: BoxDecoration(
+                    border: Border.all(color: isBtOn? Colors.blueAccent : Colors.redAccent, width: 1.3),
+                    borderRadius: BorderRadius.circular(12),
+                    color: const Color.fromARGB(255, 236, 250, 255),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    children: [
+                      SizedBox(width: 10),
+                      Icon(
+                        isBtOn
+                            ? Icons.bluetooth_rounded
+                            : Icons.bluetooth_disabled_rounded,
+                        size: 40,
+                        color: isBtOn ? Colors.blue : Colors.red,
                       ),
-                    ),
-                    SizedBox(width: 145),
-                    Switch(value: isBtOn, onChanged: (bool value) {
-                      AppSettings.openAppSettings(type: AppSettingsType.bluetooth);
-                    }),
-                    SizedBox(width: 10,),
-                  ],
-                ),
-                ),
-                SizedBox(height: 20),
-
-                Container(height: 100, width: 400,
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.blueAccent, width: 1.3),
-                  borderRadius: BorderRadius.circular(12),
-                  color: const Color.fromARGB(255, 236, 250, 255),
-
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  children: [
-                    SizedBox(width: 10,),
-                    Icon(Icons.class_rounded,
-                      size: 40,
-                      color: const Color.fromARGB(255, 208, 195, 82),
-                    ),
-                    SizedBox(width: 10),
-                    Text("Scan Session",
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black,
-                      ),
-                    ),
-                    SizedBox(width: 100),
-                    ElevatedButton(onPressed: () {},
-                     child: Text("Scan"),),
-                    SizedBox(width: 10,),
-                  ],
-                ),
-                ),
-                SizedBox(height: 20),
-                Container(height: 370, width: 400,
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.blueAccent, width: 1.3),
-                  borderRadius: BorderRadius.circular(12),
-                  color: const Color.fromARGB(255, 236, 250, 255),
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.start,
-                      children: [
-                        SizedBox(width: 15,),
-                        Icon(Icons.fact_check,
-                          size: 20,
-                          color: Colors.green,
+                      SizedBox(width: 10),
+                      Text(
+                        "Bluetooth",
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black,
                         ),
-                        SizedBox(width: 10),
-                        Text("Attendance",
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black,
+                      ),
+                      SizedBox(width: 145),
+                      Switch(
+                        value: isBtOn,
+                        onChanged: (bool value) {
+                          AppSettings.openAppSettings(
+                            type: AppSettingsType.bluetooth,
+                          );
+                        },
+                      ),
+                      SizedBox(width: 10),
+                    ],
+                  ),
+                ),
+                SizedBox(height: 20),
+
+                Container(
+                  height: 100,
+                  width: 400,
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.blueAccent, width: 1.3),
+                    borderRadius: BorderRadius.circular(12),
+                    color: const Color.fromARGB(255, 236, 250, 255),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    children: [
+                      SizedBox(width: 10),
+                      Icon(
+                        Icons.class_rounded,
+                        size: 40,
+                        color: const Color.fromARGB(255, 208, 195, 82),
+                      ),
+                      SizedBox(width: 10),
+                      Text(
+                        "Scan Session",
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black,
+                        ),
+                      ),
+                      SizedBox(width: 100),
+                      ElevatedButton(onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => StudentScan())
+                          );
+                      }, 
+                      child: Text("Scan")),
+                      SizedBox(width: 10),
+                    ],
+                  ),
+                ),
+                SizedBox(height: 20),
+                Container(
+                  height: 370,
+                  width: 400,
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.blueAccent, width: 1.3),
+                    borderRadius: BorderRadius.circular(12),
+                    color: const Color.fromARGB(255, 236, 250, 255),
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.start,
+                        children: [
+                          SizedBox(width: 15),
+                          Icon(Icons.fact_check, size: 20, color: Colors.green),
+                          SizedBox(width: 10),
+                          Text(
+                            "Attendance",
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black,
+                            ),
                           ),
-                        ),
-                        SizedBox(width: 155),
-                        TextButton(onPressed: () {},
-                         child: Text("View All", style: TextStyle(
-                          color: Colors.blue,
-                         ),),)
-                      ]
-                    ),
-                    SizedBox(height: 10),
-                    Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            buildChart(75, "Overall"),
-                            SizedBox(width: 20),
-                            buildChart(100, "Month"),
-                            SizedBox(width: 20),
-                            buildChart(50, "Week"),
-                          ]
-                        ),
+                          SizedBox(width: 155),
+                          TextButton(
+                            onPressed: () {},
+                            child: Text(
+                              "View All",
+                              style: TextStyle(color: Colors.blue),
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 10),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          buildChart(75, "Overall"),
+                          SizedBox(width: 20),
+                          buildChart(100, "Month"),
+                          SizedBox(width: 20),
+                          buildChart(50, "Week"),
+                        ],
+                      ),
                       SizedBox(width: 20),
                       Divider(
                         color: Colors.grey,
@@ -321,64 +323,71 @@ class _StudentHomeState extends State<StudentHome> {
                       ),
                       SizedBox(height: 10),
                       Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Column(
-                              children: [
-                                Text("Max"),
-                                SizedBox(height: 7,),
-                                buildChart(100, "Maths")
-                              ],
-                            ),
-                            SizedBox(width: 40),
-                            Column(
-                              children: [
-                                Text("Min"),
-                                SizedBox(height: 7,),
-                                buildChart(53, "IoT")
-                              ],
-                            ),
-                          ]
-                        ),
-                      ],
-                    
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Column(
+                            children: [
+                              Text("Max"),
+                              SizedBox(height: 7),
+                              buildChart(100, "Maths"),
+                            ],
+                          ),
+                          SizedBox(width: 40),
+                          Column(
+                            children: [
+                              Text("Min"),
+                              SizedBox(height: 7),
+                              buildChart(53, "IoT"),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
                 SizedBox(height: 20),
-                Container(width: 400,
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.blueAccent, width: 1.3),
-                  borderRadius: BorderRadius.circular(12),
-                  color: const Color.fromARGB(255, 236, 250, 255),
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  children: [
-                    SizedBox(height: 10),
-                    Row(children: [
-                      SizedBox(width: 15,),
-                        Icon(Icons.today_rounded,
-                          size: 24,
-                          color: const Color.fromARGB(255, 203, 124, 183),
-                        ),
-                        SizedBox(width: 10),
-                        Text("Today's Attendance",
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black,
+                Container(
+                  width: 400,
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.blueAccent, width: 1.3),
+                    borderRadius: BorderRadius.circular(12),
+                    color: const Color.fromARGB(255, 236, 250, 255),
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    children: [
+                      SizedBox(height: 10),
+                      Row(
+                        children: [
+                          SizedBox(width: 15),
+                          Icon(
+                            Icons.today_rounded,
+                            size: 24,
+                            color: const Color.fromARGB(255, 203, 124, 183),
                           ),
-                        ),
-                    ],),
-                    SizedBox(height: 20),
-                    buildListTile("Mathematics", "9:00 AM - 10:00 AM", true),
-                    buildListTile("IoT", "10:15 AM - 11:15 AM", false),  
-                    buildListTile("Data Structures", "11:30 AM - 12:30 PM", true),
-                    SizedBox(height: 20),
-                    
-                  ]
+                          SizedBox(width: 10),
+                          Text(
+                            "Today's Attendance",
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black,
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 20),
+                      buildListTile("Mathematics", "9:00 AM - 10:00 AM", true),
+                      buildListTile("IoT", "10:15 AM - 11:15 AM", false),
+                      buildListTile(
+                        "Data Structures",
+                        "11:30 AM - 12:30 PM",
+                        true,
+                      ),
+                      SizedBox(height: 20),
+                    ],
+                  ),
                 ),
-                )
               ],
             ),
           ),
@@ -400,7 +409,6 @@ class _StudentHomeState extends State<StudentHome> {
                 ),
               ),
               Text("Home", style: Theme.of(context).textTheme.titleSmall),
-              
             ],
           ),
           Column(
@@ -410,8 +418,9 @@ class _StudentHomeState extends State<StudentHome> {
               IconButton(
                 onPressed: () {
                   Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (context) => StudentProfile()));
+                    context,
+                    MaterialPageRoute(builder: (context) => StudentProfile()),
+                  );
                 },
                 icon: Icon(
                   Icons.person_outlined,
