@@ -1,12 +1,15 @@
-import 'dart:ffi';
-
 import 'package:flutter/material.dart';
-import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
+import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:app_settings/app_settings.dart';
+
 
 class BluetoothStatusCard extends StatefulWidget {
-  const BluetoothStatusCard({super.key});
+  final Function(bool scanReady)? onStatusChanged;
+
+  const BluetoothStatusCard({super.key,
+  this.onStatusChanged});
 
   @override
   State<BluetoothStatusCard> createState() => _BluetoothStatusCardState();
@@ -22,6 +25,10 @@ class _BluetoothStatusCardState extends State<BluetoothStatusCard> {
     super.initState();
     _loadStatus();
   }
+  void _notifyParent() {
+    final scanReady = bluetoothOn && locationGranted && locationServices;
+    widget.onStatusChanged?.call(scanReady);
+  }
   Future askPermissions() async {
     await Permission.bluetoothScan.request();
     await Permission.bluetoothConnect.request();
@@ -30,20 +37,21 @@ class _BluetoothStatusCardState extends State<BluetoothStatusCard> {
   }
 
   Future<void> _loadStatus() async {
-    final btState = await FlutterBluetoothSerial.instance.state;
+    final btState = await FlutterBluePlus.adapterState.first;
     final loc = await Permission.locationWhenInUse.status;
     final serviceEnabled =await Geolocator.isLocationServiceEnabled();
     setState(() {
-      bluetoothOn = btState == BluetoothState.STATE_ON;
+      bluetoothOn = btState == BluetoothAdapterState.on;
       locationGranted = loc.isGranted;
       locationServices=serviceEnabled;
     });
+    _notifyParent();
   }
 
   Future<void> _toggleBluetooth(bool value) async {
     if (value) {
       await askPermissions();
-      await FlutterBluetoothSerial.instance.requestEnable();
+      await FlutterBluePlus.turnOn();
     } else {
       showDialog(
         context: context,
@@ -60,22 +68,21 @@ class _BluetoothStatusCardState extends State<BluetoothStatusCard> {
             ElevatedButton(
               onPressed: () async {
                 Navigator.pop(context);
-                await FlutterBluetoothSerial.instance.openSettings();
-                FlutterBluetoothSerial.instance.onStateChanged().listen((btState) {
-                  setState(() {
-                    bluetoothOn = btState == BluetoothState.STATE_ON;
-                  });
-                });
-                },
+                AppSettings.openAppSettings(
+                  type: AppSettingsType.bluetooth,
+                );
+              },
               child: const Text("Open Settings"),
             ),
           ],
-      ),
-
+        ),
       );
     }
+
     await _loadStatus();
   }
+
+
 
   Future<void> ensureLocationServiceOn() async {
     bool enabled = await Geolocator.isLocationServiceEnabled();

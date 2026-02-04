@@ -1,7 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:smart_attendance_bluetooth/firebase_options.dart';
-import 'package:smart_attendance_bluetooth/teacher/screens/dashboard.dart';
 import 'package:smart_attendance_bluetooth/teacher/layout.dart';
 import 'teacher/screens/teacher_login.dart';
 import 'package:google_fonts/google_fonts.dart';

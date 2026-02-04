@@ -2,9 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:smart_attendance_bluetooth/services/firebase_service.dart';
 import 'package:smart_attendance_bluetooth/teacher/layout.dart';
-import 'package:smart_attendance_bluetooth/teacher/screens/dashboard.dart';
 import 'package:smart_attendance_bluetooth/teacher/screens/teacher_login.dart';
-import '../widgets/departments_list.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 
@@ -219,44 +217,52 @@ class _TeacherSignupState extends State<TeacherSignup> {
 
 // ----------------------Department Dropdown--------------
                 SizedBox(height: 24),
-                DropdownButtonFormField<String>(
-                  decoration: InputDecoration(
-                          border: OutlineInputBorder(
-                            borderSide: BorderSide(color: Colors.grey),
-                            borderRadius: BorderRadius.circular(20)
-                          ),
-                  ),
-                  hint:Row(
-                    children: [
-                      Icon(Icons.school_outlined),
-                      SizedBox(width: 20,),
-                      Text("Choose department",
-                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.normal
-                      ),),
-                    ],
-                  ),
-                  items: departments.map((dept){
-                    return DropdownMenuItem<String>(
-                      value: dept,
-                        child: Text(
-                          dept.length > 30 ? "${dept.substring(0, 30)}..." : dept,
-                            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                              fontWeight: FontWeight.normal
-                            )
-                        )
-                    );
-                  }).toList(),
-                  icon: Icon(Icons.keyboard_arrow_down_rounded),
-                  iconSize: 30,
-                  onChanged: (val){
-                    setState(() {
-                      selectedDepartment=val;
-                    });
-                  },
-                ),
+              StreamBuilder(
+                stream: firebaseService.departmentList(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return Container(width: 50,height: 2,child: const CircularProgressIndicator());
+                  }
 
-                SizedBox(height: 24),
+                  if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                    return const Text("No departments found");
+                  }
+
+                  final docs = snapshot.data!.docs;
+
+                  return DropdownButtonFormField<String>(
+                    decoration: InputDecoration(
+                      border: OutlineInputBorder(
+                          borderSide: BorderSide(color: Colors.grey),
+                          borderRadius: BorderRadius.circular(20)
+                      ),
+                    ),
+                    hint:Row(
+                      children: [
+                        Icon(Icons.school_outlined),
+                        SizedBox(width: 20,),
+                        Text("Choose department",
+                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.normal)
+                        ),
+                      ],
+                    ),
+                    initialValue: selectedDepartment,
+                    items: docs.map((doc) {
+                      return DropdownMenuItem<String>(
+                        value: doc["name"],
+                        child: Text((doc["name"]).length>30
+                            ?"${(doc["name"]).substring(0,25)}...":doc["name"],
+                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.normal)
+                        ),
+                      );
+                    }).toList(),
+                    onChanged: (val) => setState(() => selectedDepartment = val),
+                  );
+                },
+              ),
+              SizedBox(height: 24),
  // ------------------Buttons-----------
                 ElevatedButton(
                   onPressed:isLoading
@@ -277,7 +283,7 @@ class _TeacherSignupState extends State<TeacherSignup> {
                   ?SizedBox(
                     height: 20,
                       width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2,
+                      child: CircularProgressIndicator(strokeWidth: 1,
                         color: Colors.white)
                   ):
                   Text("Sign up",
