@@ -4,8 +4,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:smart_attendance_bluetooth/services/firebase_service.dart';
+import 'package:smart_attendance_bluetooth/teacher/screens/lives_session.dart';
 import 'package:smart_attendance_bluetooth/teacher/widgets/blutooth_status.dart';
 import 'package:smart_attendance_bluetooth/teacher/widgets/dateAndtime.dart';
+import 'package:smart_attendance_bluetooth/teacher/widgets/heading&subheading.dart';
 
 class StartAttendance extends StatefulWidget {
     const StartAttendance({super.key});
@@ -19,9 +21,12 @@ class _StartAttendanceState extends State<StartAttendance> {
   bool scanReady = false;
   String? selectedClassId;
   String ?selectedSubjectId;
+  String? selectedClassName;
+  String? selectedSubjectName;
   List<int> sessionDuration=[1,2,3,4,5,6,7,8,9,10];
   int ? selectedDuration;
   String?sessionType;
+  String?sessionCode;
   final FirebaseServices=FirebaseService();
 
 
@@ -30,12 +35,13 @@ class _StartAttendanceState extends State<StartAttendance> {
     final rand = Random();
     final number = 1000 + rand.nextInt(9000);
 
-    String c = selectedClassId!.replaceAll(" ", " ").toUpperCase();
+    String c = selectedClassId!.replaceAll(" ", "").toUpperCase();
 
     final snapshot = await FirebaseService().subjectCode(selectedClassId);
     final s = snapshot.docs.first["code"];
 
-    return "$c-$s-$number";
+    sessionCode = "$c-$s-$number";
+    return "${sessionCode}";
   }
 
 
@@ -48,17 +54,34 @@ class _StartAttendanceState extends State<StartAttendance> {
       );
       return;
     }
+
     final sessionId = await FirebaseServices.createAttendanceSession(
       classId: selectedClassId!,
+      className: selectedClassName!,
       subjectId: selectedSubjectId!,
+      subjectName: selectedSubjectName!,
       duration: selectedDuration!,
       sessionType: sessionType!,
       teacherId: FirebaseAuth.instance.currentUser!.uid,
-      sessionId: await generateSessionCode(),
+      sessionCode: await generateSessionCode(),
     );
 
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content:Text("Session started ${sessionId}")));
+        content:Text("Session started ${await generateSessionCode()}"
+        )
+    )
+    );
+    Navigator.pushReplacement(context, MaterialPageRoute(builder:(context)=>
+      LivesSession(
+        startTime: DateTime.now(),
+        durationMinutes: 2,
+        subjectName: selectedSubjectName!,
+        className: selectedClassName!,
+        sessionCode:sessionCode!,
+      sessionType: sessionType!,
+      )
+    ));
+
 
   }
 
@@ -70,52 +93,9 @@ class _StartAttendanceState extends State<StartAttendance> {
         child: Column(
           children: [
             // Heading Box
-            Container(
-              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                    offset:  Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  IconButton(
-                    onPressed: () {
-                      Navigator.pop(context);
-                    },
-                    icon: const Icon(Icons.arrow_back_ios, size: 20),
-                    style: IconButton.styleFrom(
-                      foregroundColor: Colors.black87,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "Start Attendance",
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        "Create a new attendance session and start scan",
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+            Heading_subheading(
+              Heading: "Start Attendance",
+              subheading: "Create a new session and start",
             ),
             // Date&Time
             Padding(
@@ -187,19 +167,23 @@ class _StartAttendanceState extends State<StartAttendance> {
                                     return DropdownButtonFormField(
                                       initialValue: selectedClassId,
                                       items: docs.map((doc){
-
                                         return DropdownMenuItem(
                                             value: doc.id,
                                             child: Text(doc["name"],
                                             style: TextStyle(fontWeight: FontWeight.normal),)
                                         );
                                       }).toList(),
-                                      onChanged:(val) {
+                                      onChanged: (val) {
+                                        final selectedDoc = docs.firstWhere((doc) => doc.id == val);
+
                                         setState(() {
-                                          selectedClassId=val;
-                                          selectedSubjectId=null;
+                                          selectedClassId = val;
+                                          selectedClassName = selectedDoc["name"];                                           selectedSubjectId = null;
+                                          selectedSubjectId = null;
+                                          selectedSubjectName = null;
                                         });
                                       },
+
                                       decoration: InputDecoration(
                                         label: Text("Class",style: Theme.of(context).textTheme.titleMedium?.copyWith(
                                           fontWeight: FontWeight.normal
@@ -260,8 +244,10 @@ class _StartAttendanceState extends State<StartAttendance> {
                                         );
                                       }).toList(),
                                       onChanged:(val) {
+                                        final selectedDoc=docs.firstWhere((doc)=>doc.id==val);
                                         setState(() {
                                           selectedSubjectId=val;
+                                          selectedSubjectName=selectedDoc["name"];
                                         });
                                       },
                                       decoration: InputDecoration(
@@ -284,7 +270,8 @@ class _StartAttendanceState extends State<StartAttendance> {
                               initialValue: selectedDuration,
                                 items:sessionDuration.map((e){
                                   return DropdownMenuItem(
-                                      child: Text("$e"),
+                                      child: Text("${e} Minute",
+                                          style: TextStyle(fontWeight: FontWeight.normal)),
                                       value: e);
                                 }).toList(),
                                 onChanged: (val){
@@ -313,7 +300,6 @@ class _StartAttendanceState extends State<StartAttendance> {
                               SizedBox(height: 20,),
                               Text("Session Type :",
                               style: Theme.of(context).textTheme.titleSmall,),
-
                               RadioMenuButton(value:"Lecture" ,
                                   groupValue:sessionType ,
                                   onChanged:(val){
@@ -322,7 +308,6 @@ class _StartAttendanceState extends State<StartAttendance> {
                                 });
                                   },
                                   child:Text("Lecture") ),
-
                               RadioMenuButton(value:"Practical" ,
                                   groupValue:sessionType ,
                                   onChanged:(val){
@@ -345,6 +330,7 @@ class _StartAttendanceState extends State<StartAttendance> {
 
                         ),
                       ),
+
                     ],
                   ),
                 )

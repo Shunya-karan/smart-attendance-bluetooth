@@ -38,33 +38,41 @@ class FirebaseService {
         .where("isActive")
         .snapshots();
   }
-  Future<String>createAttendanceSession({
+
+  Future<String> createAttendanceSession({
     required String classId,
+    required String className,
     required String subjectId,
-    required  int duration,
+    required String subjectName,
+    required int duration,
     required String sessionType,
     required String teacherId,
-    required String sessionId
+    required String sessionCode,
+  }) async {
 
-})async{
-    final doc=FirebaseFirestore.instance
+    final doc = FirebaseFirestore.instance
         .collection("attendance_sessions")
-        .doc();
+        .doc(sessionCode);
 
     await doc.set({
-      "classId":classId,
-      "subjectId":subjectId,
-      "duration":duration,
-      "teacherId":teacherId,
-      "startTime":FieldValue.serverTimestamp(),
-      "endTime":null,
-      "status":"active",
-      "createdAt":FieldValue.serverTimestamp(),
-      "sessionid":sessionId
-
+      "sessionCode": sessionCode,
+      "classId": classId,
+      "className": className,
+      "subjectId": subjectId,
+      "subjectName": subjectName,
+      "duration": duration,
+      "sessionType": sessionType,
+      "teacherId": teacherId,
+      "startTime": FieldValue.serverTimestamp(),
+      "endTime": null,
+      "status": "active",
+      "createdAt": FieldValue.serverTimestamp(),
+      "teacherBtName": "SMART_ATTEND_TEACHER_01"
     });
-    return sessionId;
+
+    return sessionCode;
   }
+
 
   Future<QuerySnapshot> subjectCode(String? classID) {
     return FirebaseFirestore.instance
@@ -73,6 +81,16 @@ class FirebaseService {
         .collection("subjects")
         .where("isActive", isEqualTo: true)
         .get();
+  }
+
+  Future<void>endSession(String?sessionId){
+    return FirebaseFirestore.instance
+        .collection("attendance_sessions")
+        .doc(sessionId)
+        .update({
+      "status":"closed",
+      "endTime":FieldValue.serverTimestamp()
+    });
   }
 
 
