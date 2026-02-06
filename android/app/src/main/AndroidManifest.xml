@@ -16,6 +16,11 @@
     <!-- Needed by flutter_blue_plus -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 
+    <!-- Needed to check network connectivity -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+    <uses-permission android:name="android.permission.INTERNET"/>
+
+
     <application
         android:label="smart_attendance_bluetooth"
         android:name="${applicationName}"

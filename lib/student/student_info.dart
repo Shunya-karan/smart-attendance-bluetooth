@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:smart_attendance_bluetooth/student/student_home.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:smart_attendance_bluetooth/student/student_main.dart';
 
 class StudentInfo extends StatefulWidget{
   const StudentInfo ({super.key});
@@ -23,7 +24,7 @@ Future<void> saveStudentInfo(String name, String seatNumber) async {
     
     Navigator.pushReplacement(
       context, 
-      MaterialPageRoute(builder: (context) => StudentHome()),
+      MaterialPageRoute(builder: (context) => StudentMain()),
     );
   }
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:smart_attendance_bluetooth/student/student_home.dart';
 import 'package:smart_attendance_bluetooth/student/student_info.dart';
+import 'package:smart_attendance_bluetooth/student/student_main.dart';
 import 'teacher/teacher_login.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -34,7 +35,7 @@ class MyApp extends StatelessWidget {
           }
 
           if (snapshot.data == true) {
-            return const StudentHome();
+            return  StudentMain();
           } else {
             return const StudentInfo();
           }
@@ -58,7 +59,7 @@ class MyApp extends StatelessWidget {
           titleSmall: TextStyle(
             fontWeight: FontWeight.bold,
               fontSize: 16
-          ),
+          ), 
           titleMedium: TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 20

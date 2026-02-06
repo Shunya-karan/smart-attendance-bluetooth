@@ -42,8 +42,7 @@ class _StudentProfileState extends State<StudentProfile> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Center(
+    return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -119,45 +118,6 @@ class _StudentProfileState extends State<StudentProfile> {
             SizedBox(height: 40),
           ],
         )
-      ),
-      bottomNavigationBar: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                },
-                icon: Icon(
-                  Icons.home_outlined,
-                  color: Theme.of(context).colorScheme.primary,
-                  size: 40,
-                ),
-              ),
-              Text("Home", style: Theme.of(context).textTheme.titleSmall),
-              
-            ],
-          ),
-          Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(
-                onPressed: () {},
-                icon: Icon(
-                  Icons.person_rounded,
-                  color: Theme.of(context).colorScheme.primary,
-                  size: 40,
-                ),
-              ),
-              Text("Profile", style: Theme.of(context).textTheme.titleSmall),
-            ],
-          ),
-        ],
-      ),
     );
   }
 }
