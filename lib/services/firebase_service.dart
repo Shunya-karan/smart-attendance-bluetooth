@@ -67,7 +67,7 @@ class FirebaseService {
       "endTime": null,
       "status": "active",
       "createdAt": FieldValue.serverTimestamp(),
-      "teacherBtName": "SMART_ATTEND_TEACHER_01"
+      "teacherBtName": "ATTEND_${sessionCode}"
     });
 
     return sessionCode;
@@ -91,6 +91,13 @@ class FirebaseService {
       "status":"closed",
       "endTime":FieldValue.serverTimestamp()
     });
+  }
+
+  Stream<QuerySnapshot> getStudents(String className) {
+    return FirebaseFirestore.instance
+        .collection("students")
+        .where("className", isEqualTo: className)
+        .snapshots();
   }
 
 

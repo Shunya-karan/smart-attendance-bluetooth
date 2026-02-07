@@ -35,15 +35,13 @@ class _StartAttendanceState extends State<StartAttendance> {
     final rand = Random();
     final number = 1000 + rand.nextInt(9000);
 
-    String c = selectedClassId!.replaceAll(" ", "").toUpperCase();
-
+    String c = selectedClassName!.replaceAll(" ", "").toUpperCase();
     final snapshot = await FirebaseService().subjectCode(selectedClassId);
     final s = snapshot.docs.first["code"];
 
     sessionCode = "$c-$s-$number";
     return "${sessionCode}";
   }
-
 
   Future <void>_startSession()async{
     if(selectedClassId==null||
@@ -74,7 +72,7 @@ class _StartAttendanceState extends State<StartAttendance> {
     Navigator.pushReplacement(context, MaterialPageRoute(builder:(context)=>
       LivesSession(
         startTime: DateTime.now(),
-        durationMinutes: 2,
+        durationMinutes: selectedDuration!,
         subjectName: selectedSubjectName!,
         className: selectedClassName!,
         sessionCode:sessionCode!,
@@ -84,6 +82,8 @@ class _StartAttendanceState extends State<StartAttendance> {
 
 
   }
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -362,7 +362,6 @@ class _StartAttendanceState extends State<StartAttendance> {
                     )),
               ),
             )
-
           ],
         ),
       ),

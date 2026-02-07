@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:smart_attendance_bluetooth/teacher/widgets/heading&subheading.dart';
+import 'package:smart_attendance_bluetooth/services/firebase_service.dart';
 
 class LivesSession extends StatefulWidget {
     final DateTime startTime;
@@ -9,9 +10,9 @@ class LivesSession extends StatefulWidget {
     final String className;
     final String subjectName;
     final String sessionType;
+    final FirebaseServices=FirebaseService();
 
-
-   LivesSession({super.key,
+    LivesSession({super.key,
      required this.startTime,
      required this.durationMinutes,
      required this.sessionType,
@@ -173,8 +174,39 @@ class _LivesSessionState extends State<LivesSession> {
                         ),
                       ),
                       ),
-                    
-                ],
+                    SizedBox(height: 30,),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.vertical,
+                      child: StreamBuilder(
+                        stream: widget.FirebaseServices.getStudents(widget.className),
+                        builder: (context, snapshot) {
+                          if (!snapshot.hasData) return CircularProgressIndicator();
+
+                          final students = snapshot.data!.docs;
+
+                          return ListView.builder(
+                            shrinkWrap: true,
+                            itemCount: students.length,
+                            itemBuilder: (context, index) {
+                              final student = students[index];
+
+                              return ListTile(
+                                title: Text((student["name"]).toString().toUpperCase(),
+                                style: Theme.of(context).textTheme.titleSmall,
+                                ),
+                                subtitle: Text("Roll No : ${student["rollNo"]}",
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w500
+                                ),),
+                              );
+                            },
+                          );
+                        },
+                      ),
+                    )
+
+
+                  ],
                 ),
               ),
             ),

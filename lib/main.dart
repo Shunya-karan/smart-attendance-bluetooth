@@ -20,25 +20,32 @@ class MyApp extends StatelessWidget {
     return  MaterialApp(
       title: "Attendance App",
       debugShowCheckedModeBanner: false,
-      home: FirebaseAuth.instance.currentUser!=null
-          ? Center(
-            child:teacher_Layout()
-          ):TeacherLogin(),
+      // home: FirebaseAuth.instance.currentUser!=null
+      //     ? Center(
+      //       child:teacher_Layout()
+      //     ):TeacherLogin(),
 
-      // StreamBuilder(
-      //   stream: FirebaseAuth.instance.authStateChanges(),
-      //   builder: (context, asyncSnapshot){
-      //     if(asyncSnapshot.connectionState==ConnectionState.waiting){
-      //       return Center(
-      //         child:CircularProgressIndicator() ,
-      //       );
-      //     }
-      //    if(asyncSnapshot.data!=null){
-      //      return teacher_Layout();
-      //    }
-      // return TeacherLogin();
-      //   }
-      // ),
+      home:StreamBuilder(
+        stream: FirebaseAuth.instance.authStateChanges(),
+        builder: (context, asyncSnapshot){
+          if(asyncSnapshot.connectionState==ConnectionState.waiting){
+            return Center(
+              child:CircularProgressIndicator() ,
+            );
+          }
+         if(asyncSnapshot.data!=null){
+           return LivesSession(
+             startTime: DateTime.now(),
+             durationMinutes:2,
+             subjectName: "CN",
+             className: "SYCS",
+             sessionCode:"22",
+             sessionType: "lecture",
+           );
+         }
+      return TeacherLogin();
+        }
+      ),
       theme: ThemeData(
           fontFamily: GoogleFonts.lato().fontFamily,
         colorScheme: ColorScheme.fromSeed(
