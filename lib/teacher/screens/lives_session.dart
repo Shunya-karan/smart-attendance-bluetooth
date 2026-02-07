@@ -30,6 +30,7 @@ class _LivesSessionState extends State<LivesSession> {
     Timer?_timer;
     late DateTime endTime;
     Duration remaining=Duration.zero;
+    Map<String, bool> attendanceMap = {};
 
   @override
   void initState() {
@@ -175,37 +176,56 @@ class _LivesSessionState extends State<LivesSession> {
                       ),
                       ),
                     SizedBox(height: 30,),
-                    SingleChildScrollView(
-                      scrollDirection: Axis.vertical,
-                      child: StreamBuilder(
-                        stream: widget.FirebaseServices.getStudents(widget.className),
-                        builder: (context, snapshot) {
-                          if (!snapshot.hasData) return CircularProgressIndicator();
 
-                          final students = snapshot.data!.docs;
+                    StreamBuilder(
+                      stream: widget.FirebaseServices.getStudents(widget.className),
+                      builder: (context, snapshot) {
+                        if (!snapshot.hasData) return CircularProgressIndicator();
+                    
+                        final students = snapshot.data!.docs;
 
-                          return ListView.builder(
-                            shrinkWrap: true,
-                            itemCount: students.length,
-                            itemBuilder: (context, index) {
-                              final student = students[index];
+                        return ListView.builder(
+                          shrinkWrap: true,
+                          physics: NeverScrollableScrollPhysics(),
+                          itemCount: students.length,
+                          itemBuilder: (context, index) {
+                            final student = students[index];
+                            final studentId = student.id;
 
-                              return ListTile(
-                                title: Text((student["name"]).toString().toUpperCase(),
-                                style: Theme.of(context).textTheme.titleSmall,
+                            // default false if not set
+                            bool present = attendanceMap[studentId] ?? false;
+
+                            return Card(
+                              elevation: 2,
+                              child: ListTile(
+                                title: Text(
+                                  student["name"].toString().toUpperCase(),
+                                  style: Theme.of(context).textTheme.titleSmall,
                                 ),
-                                subtitle: Text("Roll No : ${student["rollNo"]}",
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w500
-                                ),),
-                              );
-                            },
-                          );
-                        },
-                      ),
+                                subtitle: Text(
+                                  "Roll No : ${student["rollNo"]}",
+                                  style: TextStyle(fontWeight: FontWeight.w500),
+                                ),
+                                trailing: ElevatedButton(
+                                  onPressed: () {
+                                    setState(() {
+                                      attendanceMap[studentId] = !present;
+                                    });
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: present ? Colors.green : Colors.red,
+                                  ),
+                                  child: Text(
+                                    present ? "P" : "A",
+                                    style: TextStyle(color: Colors.white),
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        );
+                      },
                     )
-
-
                   ],
                 ),
               ),
