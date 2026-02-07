@@ -40,8 +40,26 @@ android {
             signingConfig = signingConfigs.getByName("debug")
         }
     }
+    flavorDimensions += "app"
+
+    productFlavors {
+        create("teacher") {
+            dimension = "app"
+            applicationIdSuffix = ".teacher"
+            resValue("string", "app_name", "Teacher App")
+        }
+
+        create("student") {
+            dimension = "app"
+            applicationIdSuffix = ".student"
+            resValue("string", "app_name", "Student App")
+        }
+    }
+
 }
 
 flutter {
     source = "../.."
 }
+
+
