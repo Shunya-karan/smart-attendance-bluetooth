@@ -49,6 +49,12 @@ dependencies:
   #connectivity plus
   connectivity_plus: ^6.0.5
   internet_connection_checker: ^1.0.0+1
+  #firebase
+  firebase_core: ^4.4.0
+  firebase_auth: ^6.1.4
+  cloud_firestore: ^6.1.2
+  marquee: ^2.3.0
+  geolocator: ^14.0.2
 
 
 dev_dependencies:

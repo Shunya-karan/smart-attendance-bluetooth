@@ -34,14 +34,26 @@ class _StartAttendanceState extends State<StartAttendance> {
 
   Future<String> generateSessionCode() async {
     final rand = Random();
-    final number = 1000 + rand.nextInt(9000);
+    final number = 999 + rand.nextInt(9000);
 
-    String c = selectedClassId!.replaceAll(" ", "").toUpperCase();
+    String c = selectedClassName!.replaceAll(" ", "").toUpperCase();
 
-    final snapshot = await FirebaseService().subjectCode(selectedClassId);
-    final s = snapshot.docs.first["code"];
+final docSnapshot = await FirebaseFirestore.instance
+    .collection('classes')
+    .doc('classId1')
+    .collection('subjects')
+    .doc('sub1')
+    .get();
 
-    sessionCode = "$c-$s-$number";
+if (!docSnapshot.exists) {
+  throw Exception("Subject not found");
+}
+
+final s = docSnapshot['code']; 
+
+    sessionCode = "$c|$s|$number";
+    print(sessionCode! +'wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww');
+
     return "${sessionCode}";
   }
 
@@ -99,6 +111,13 @@ Future<void> _startSession() async {
 
   final code = await generateSessionCode();
 
+      print(code);
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content:Text("Session started $code}"
+        )
+    )
+    );
+
   await FirebaseServices.createAttendanceSession(
     classId: selectedClassId!,
     className: selectedClassName!,
@@ -113,8 +132,6 @@ Future<void> _startSession() async {
   /// 🔥 START BLE HERE
   await TeacherBleService.startBleSession(
     sessionCode: code,
-    className: selectedClassName!,
-    subjectName: selectedSubjectName!,
   );
 
   Navigator.pushReplacement(

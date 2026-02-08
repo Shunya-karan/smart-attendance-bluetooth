@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:smart_attendance_bluetooth/teacher/widgets/heading&subheading.dart';
 import 'package:smart_attendance_bluetooth/bluetooth_session.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class LivesSession extends StatefulWidget {
     final DateTime startTime;
@@ -32,6 +33,7 @@ class _LivesSessionState extends State<LivesSession> {
     Duration remaining=Duration.zero;
     final List<String> presentStudents = [];
     
+    
 
 
 @override
@@ -55,6 +57,24 @@ void initState() {
   });
 }
 
+Future<List<Map<String, dynamic>>> getStudentsOfClass(String classId) async {
+  final snapshot = await FirebaseFirestore.instance
+      .collection('students')
+      .where('classId', isEqualTo: classId)
+      .get();
+
+  return snapshot.docs.map((doc) => doc.data()).toList();
+}
+
+Future<List<Widget>> createListTiles() async {
+  final students = await getStudentsOfClass('classId1');
+  return students.map((s) => ListTile(
+    title: Text(s['name']),
+    subtitle: Text('Roll No: ${s['rollNo']}'),
+  )).toList();
+}
+
+
 
 void _startCountdown() {
   _timer?.cancel();
@@ -70,6 +90,7 @@ void _startCountdown() {
 
       setState(() {
         remaining = Duration.zero;
+        
       });
       return;
     }
@@ -79,6 +100,8 @@ void _startCountdown() {
     });
   });
 }
+
+
 
 @override
 void dispose() {
@@ -145,6 +168,79 @@ void dispose() {
                     ),
                   ),
                 ),
+                    SizedBox(height: 20,),
+ Card(
+  elevation: 4,
+  shape: RoundedRectangleBorder(
+    borderRadius: BorderRadius.circular(20),
+  ),
+  child: Padding(
+    padding: const EdgeInsets.all(12.0),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Title of the card
+        Text(
+          'Student List', // <-- Your title here
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            color: Theme.of(context).colorScheme.primary,
+          ),
+        ),
+        SizedBox(height: 10), // spacing between title and list
+
+        // StreamBuilder showing the list
+        StreamBuilder<QuerySnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection('students')
+              .where('className', isEqualTo: 'SYCS')
+              .snapshots(),
+          builder: (context, snapshot) {
+            if (!snapshot.hasData) {
+              return Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: Center(child: CircularProgressIndicator()),
+              );
+            }
+
+            final students = snapshot.data!.docs;
+
+            if (students.isEmpty) {
+              return Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: Center(child: Text('No students found')),
+              );
+            }
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: students.map((doc) {
+                final s = doc.data()! as Map<String, dynamic>;
+                final isPresent = presentStudents.contains(s['rollNo'].toString());
+
+                return ListTile(
+                  title: Text(
+                    s['name'].toString().toUpperCase(),
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  subtitle: Text('Roll No: ${s['rollNo']}'),
+                  trailing: isPresent
+                      ? Icon(Icons.check_circle, color: Colors.green)
+                      : Icon(Icons.remove_circle_outline, color: Colors.grey),
+                );
+              }).toList(),
+            );
+          },
+        ),
+      ],
+    ),
+  ),
+),
+
                     SizedBox(height: 20,),
                     Card(
                       elevation: 4,

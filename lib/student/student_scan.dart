@@ -13,21 +13,31 @@ class StudentScan extends StatefulWidget {
   State<StudentScan> createState() => _StudentScanState();
 }
 
-class _StudentScanState extends State<StudentScan> {
+class _StudentScanState extends State<StudentScan> with WidgetsBindingObserver{
   bool isBtOn = false;
   bool started = false;
   bool dialogShown = false;
   Map<String, Timer> timers = {};
+  Map<String, String> nearbySessions = {};
+
+
+  final Guid serviceUuid =
+    Guid("00001810-0000-1000-8000-00805f9b34fb");
+
+  final Guid charUuid =
+    Guid("00002a35-0000-1000-8000-00805f9b34fb");
+
+  bool attendanceSent = false;
+    StreamSubscription<List<ScanResult>>? scanSub;
+
 
   Map<String, int> sessionTimers = {
-    "SESSION12345": 120,
-    "SESSION1232234": 300,
-    "SESSION98765": 0,
   };
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
 
     sessionTimers.forEach((id, time) {
       if (time > 0) {
@@ -36,27 +46,132 @@ class _StudentScanState extends State<StudentScan> {
     });
   }
 
-  @override
-  void dispose() {
-    for (final timer in timers.values) {
-      timer.cancel();
-    }
-    super.dispose();
-  }
+@override
+void dispose() {
+  scanSub?.cancel();
+  FlutterBluePlus.stopScan();
+  WidgetsBinding.instance.removeObserver(this);
 
-  @override
-void didUpdateWidget(covariant StudentScan oldWidget) {
-  super.didUpdateWidget(oldWidget);
-
-  if (widget.active && !started) {
-    started = true;
-    initBluetoothUI();
+  for (final timer in timers.values) {
+    timer.cancel();
   }
-
-  if (!widget.active) {
-    started = false;
-  }
+  super.dispose();
 }
+
+@override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.inactive || state == AppLifecycleState.paused) {
+      // Screen is not active or app is in background
+      setState(() {
+        started = false;
+        // stop scanning if you want
+        scanSub?.cancel();
+        FlutterBluePlus.stopScan();
+      });
+    } else if (state == AppLifecycleState.resumed) {
+      // Screen is visible again
+      if (widget.active && !started) {
+        setState(() => started = true);
+        initBluetoothUI();
+        startLiveScan();
+      }
+    }
+  }
+
+
+
+void startLiveScan() async {
+  if (!isBtOn) return;
+
+  await FlutterBluePlus.startScan(timeout: const Duration(seconds: 4));
+
+  FlutterBluePlus.scanResults.listen((results) {
+    if (!mounted) return;
+
+    for (final r in results) {
+      final serviceUuids = r.advertisementData.serviceUuids;
+
+      if (serviceUuids.contains(serviceUuid)) {
+        // Extract session ID and owner from advertisement (for example)
+        // Here, we assume the device name contains sessionId|owner
+        final advName = r.advertisementData.localName;
+        if (advName.contains("|")) {
+          final parts = advName.split("|");
+          final sessionId = parts[0];
+          final owner = parts[1];
+
+          setState(() {
+            nearbySessions[sessionId] = owner;
+          });
+        }
+      }
+    }
+  });
+}
+
+
+Future<void> markAttendance(String sessionId) async {
+  if (!isBtOn) {
+    showSnack("Turn ON Bluetooth first");
+    return;
+  }
+
+  attendanceSent = false;
+
+  await FlutterBluePlus.startScan(
+    timeout: const Duration(seconds: 6),
+  );
+
+  scanSub = FlutterBluePlus.scanResults.listen((results) async {
+    for (final r in results) {
+      if (attendanceSent) return;
+
+      if (r.advertisementData.serviceUuids.contains(serviceUuid)) {
+        try {
+          await FlutterBluePlus.stopScan();
+
+          final device = r.device;
+          await device.connect(timeout: const Duration(seconds: 8));
+
+          final services = await device.discoverServices();
+          for (final s in services) {
+            if (s.uuid == serviceUuid) {
+              for (final c in s.characteristics) {
+                if (c.uuid == charUuid) {
+                  final attendanceData =
+                      "$sessionId|23";
+
+                  await c.write(attendanceData.codeUnits);
+                  attendanceSent = true;
+                  break;
+                }
+              }
+            }
+          }
+
+          await device.disconnect();
+
+          if (attendanceSent && mounted) {
+            showSnack("Attendance marked ✅");
+          }
+          scanSub?.cancel();
+          return;
+        } catch (e) {
+          showSnack("Failed to mark attendance");
+        }
+      }
+    }
+  });
+}
+
+
+void showSnack(String msg) {
+  ScaffoldMessenger.of(context).clearSnackBars();
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(content: Text(msg)),
+  );
+}
+
 
 
 
@@ -199,7 +314,10 @@ void didUpdateWidget(covariant StudentScan oldWidget) {
           ),
           SizedBox(height: 5),
           ElevatedButton(
-            onPressed: () {print(widget.active.toString() + "                  wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww");},
+            onPressed: timeLeft > 0? () {
+            markAttendance(sessionID);
+              }
+              : null,
             style: ElevatedButton.styleFrom(
               backgroundColor: timeLeft > 0
                   ? Theme.of(context).colorScheme.secondary
@@ -316,11 +434,14 @@ void didUpdateWidget(covariant StudentScan oldWidget) {
                   ),
                 ),
                 SizedBox(height: 20),
-                buildSession("SESSION12345", "Dr. Smith"),
-                SizedBox(height: 20),
-                buildSession("SESSION1232234", "Dr. John"),
-                SizedBox(height: 20),
-                buildSession("SESSION98765", "Prof. Alice"),
+                ...nearbySessions.entries.map((entry) {
+  final sessionId = entry.key;
+  final owner = entry.value;
+  return Padding(
+    padding: const EdgeInsets.only(bottom: 20),
+    child: buildSession(sessionId, owner),
+  );
+}).toList(),
                 SizedBox(height: 50),
               ],
             ),
