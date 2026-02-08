@@ -23,18 +23,24 @@ class _BluetoothStatusCardState extends State<BluetoothStatusCard> {
   @override
   void initState() {
     super.initState();
+    _askAllPermissions();
     _loadStatus();
   }
+
+  Future<void> _askAllPermissions() async {
+    await [
+      Permission.bluetoothScan,
+      Permission.bluetoothConnect,
+      Permission.bluetoothAdvertise,
+      Permission.locationWhenInUse,
+    ].request();
+  }
+
   void _notifyParent() {
     final scanReady = bluetoothOn && locationGranted && locationServices;
     widget.onStatusChanged?.call(scanReady);
   }
-  Future askPermissions() async {
-    await Permission.bluetoothScan.request();
-    await Permission.bluetoothConnect.request();
-    await Permission.bluetooth.request(); // optional for older devices
-    await Permission.locationWhenInUse.request(); // fine location
-  }
+
 
   Future<void> _loadStatus() async {
     final btState = await FlutterBluePlus.adapterState.first;
@@ -50,7 +56,6 @@ class _BluetoothStatusCardState extends State<BluetoothStatusCard> {
 
   Future<void> _toggleBluetooth(bool value) async {
     if (value) {
-      await askPermissions();
       await FlutterBluePlus.turnOn();
     } else {
       showDialog(
@@ -96,59 +101,20 @@ class _BluetoothStatusCardState extends State<BluetoothStatusCard> {
     });
   }
   Future<void> _requestLocation() async {
+    var status = await Permission.locationWhenInUse.status;
+
+    if (status.isPermanentlyDenied) {
+      openAppSettings();
+      return;
+    }
+
     final result = await Permission.locationWhenInUse.request();
-    debugPrint("Location result: $result");
 
-    setState(() => locationGranted = result.isGranted);
-
-    if (result.isGranted){
-      await ensureLocationServiceOn();
-      await _loadStatus();
-    }
-
-    if (result.isDenied) {
-      showDialog(
-        context: context,
-        builder: (_) => AlertDialog(
-          title: const Text("Location Required"),
-          content: const Text(
-            "Location permission is required for Bluetooth scanning.\n\nPlease allow Location permission.",
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("OK"),
-            ),
-          ],
-        ),
-      );
-    }
-    if (result.isPermanentlyDenied) {
-      showDialog(
-        context: context,
-        builder: (_) => AlertDialog(
-          title: const Text("Allow Location from Settings"),
-          content: const Text(
-            "You have permanently denied location permission.\n\nOpen Settings and allow it manually.",
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Cancel"),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                Navigator.pop(context);
-                await openAppSettings();
-                await _loadStatus();
-              },
-              child: const Text("Open Settings"),
-            ),
-          ],
-        ),
-      );
-    }
+    setState(() {
+      locationGranted = result.isGranted;
+    });
   }
+
 
 
 

@@ -34,14 +34,7 @@ class TeacherApp extends StatelessWidget {
               );
             }
             if(asyncSnapshot.data!=null){
-              return LivesSession(
-                startTime: DateTime.now(),
-                durationMinutes:2,
-                subjectName: "CN",
-                className: "SYCS",
-                sessionCode:"22",
-                sessionType: "lecture",
-              );
+              return teacher_Layout();
             }
             return TeacherLogin();
           }

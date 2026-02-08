@@ -77,6 +77,7 @@ class _StartAttendanceState extends State<StartAttendance> {
         className: selectedClassName!,
         sessionCode:sessionCode!,
       sessionType: sessionType!,
+        isHistory: false,
       )
     ));
 

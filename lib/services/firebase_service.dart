@@ -101,4 +101,49 @@ class FirebaseService {
   }
 
 
+  Future<void> saveAttendance({
+    required String sessionId,
+    required String className,
+    required String subject,
+    required String sessionType,
+    required DateTime date,
+    required Map<String, bool> attendanceMap,
+    required List students,
+  }) async {
+    final firestore = FirebaseFirestore.instance;
+
+    final sessionRef =
+    firestore.collection("attendance_records").doc(sessionId);
+
+    await sessionRef.set({
+      "class": className,
+      "subject": subject,
+      "sessiontype": sessionType,
+      "date": date.toIso8601String(),
+      "createdAt": FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+
+    final batch = firestore.batch();
+
+    for (var student in students) {
+      final studentId = student.id;
+      final present = attendanceMap[studentId] ?? false;
+
+      final docRef = sessionRef
+          .collection("students")
+          .doc(studentId);
+
+      batch.set(docRef, {
+        "name": student["name"],
+        "rollNo": student["rollNo"],
+        "present": present,
+        "markedAt": FieldValue.serverTimestamp(),
+      });
+    }
+
+    await batch.commit();
+  }
+
+
+
 }

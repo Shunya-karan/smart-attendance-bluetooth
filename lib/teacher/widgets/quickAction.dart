@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:smart_attendance_bluetooth/teacher/screens/attendance_history.dart';
 import 'package:smart_attendance_bluetooth/teacher/screens/start_attendance.dart';
 
 class QuickAction extends StatelessWidget {
@@ -67,7 +68,8 @@ class QuickAction extends StatelessWidget {
                     height: 60,
                     width: 80,
                     child: ElevatedButton(
-                      onPressed: () {},
+                      onPressed:()=>Navigator.push(context,
+                          MaterialPageRoute(builder: (context)=>attendanceHistory())),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.white,
                         foregroundColor: Colors.black87,

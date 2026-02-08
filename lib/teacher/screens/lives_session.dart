@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:smart_attendance_bluetooth/teacher/widgets/heading&subheading.dart';
 import 'package:smart_attendance_bluetooth/services/firebase_service.dart';
@@ -10,7 +11,7 @@ class LivesSession extends StatefulWidget {
     final String className;
     final String subjectName;
     final String sessionType;
-    final FirebaseServices=FirebaseService();
+    final bool isHistory;
 
     LivesSession({super.key,
      required this.startTime,
@@ -18,7 +19,8 @@ class LivesSession extends StatefulWidget {
      required this.sessionType,
      required this.className,
      required this.sessionCode,
-     required this.subjectName
+     required this.subjectName,
+      required this.isHistory
   });
 
 
@@ -31,16 +33,39 @@ class _LivesSessionState extends State<LivesSession> {
     late DateTime endTime;
     Duration remaining=Duration.zero;
     Map<String, bool> attendanceMap = {};
+    final FirebaseServices=FirebaseService();
+    List studentsList = [];
 
-  @override
-  void initState() {
-    super.initState();
-    endTime = widget.startTime.add(Duration(minutes: widget.durationMinutes));
-    remaining=endTime.difference(DateTime.now());
-    _startCountdown();
-  }
+    @override
+    void initState() {
+      super.initState();
+      endTime = widget.startTime.add(Duration(minutes: widget.durationMinutes));
+      remaining = endTime.difference(DateTime.now());
 
-  void _startCountdown() {
+      if (!widget.isHistory) {
+        _startCountdown();
+      }
+
+      if (widget.isHistory) {
+        loadOldAttendance();
+      }
+    }
+
+    Future<void> loadOldAttendance() async {
+      final snap = await FirebaseFirestore.instance
+          .collection("attendance_records")
+          .doc(widget.sessionCode)
+          .collection("students")
+          .get();
+
+      for (var doc in snap.docs) {
+        attendanceMap[doc.id] = doc["present"];
+      }
+
+      setState(() {});
+    }
+
+    void _startCountdown() {
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       final now = DateTime.now();
@@ -58,16 +83,40 @@ class _LivesSessionState extends State<LivesSession> {
       });
     });
   }
-  @override
-  void dispose() {
+
+    @override
+    void dispose() {
     _timer?.cancel();
     super.dispose();
   }
 
-  String formatDuration(Duration d) {
+    String formatDuration(Duration d) {
     final minutes = d.inMinutes.remainder(60).toString().padLeft(2, '0');
     final seconds = d.inSeconds.remainder(60).toString().padLeft(2, '0');
     return "$minutes:$seconds";
+  }
+
+    void _endSession(){
+    showDialog(context: context, 
+        builder:(_)=>AlertDialog(
+          title: Text("End Session?"),
+          content: Text("Do you want to end the session \nSession Code : ${widget.sessionCode}?"),
+          actions: [
+            TextButton(onPressed:()=> Navigator.pop(context),
+                child: Text("Cancel",
+              style: TextStyle(color: Colors.red),)
+            ),
+            ElevatedButton(onPressed: (){
+              _timer?.cancel();
+              setState(() {
+                remaining=Duration(seconds: 0);
+                Navigator.pop(context);
+              });
+            },
+                child: Text("Yes"))
+          ],
+        ));
+
   }
 
 
@@ -77,12 +126,14 @@ class _LivesSessionState extends State<LivesSession> {
       body: SafeArea(
         child: Column(
           children: [
-            Heading_subheading(Heading: "Live Attendance", subheading: "Session is active • Marking students automatically"),
+            //Heading and Back button
+            Heading_subheading(Heading:!widget.isHistory?"Live Attendance":"Past Attendance", subheading: "Session is active • Marking students automatically"),
             Expanded(
               child: SingleChildScrollView(
                 padding: EdgeInsetsGeometry.all(20),
                 child: Column(
                   children: [
+                    //Details of session
                     Card(
                   elevation: 4,
                   shape: RoundedRectangleBorder(
@@ -97,7 +148,8 @@ class _LivesSessionState extends State<LivesSession> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
-                              "Live Session",
+                              !widget.isHistory?
+                              "Live Session":"Past Session",
                               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                                 fontWeight: FontWeight.bold,
                                 color: Colors.blueAccent,
@@ -116,12 +168,15 @@ class _LivesSessionState extends State<LivesSession> {
                         _buildInfoRow(Icons.menu_book, "Subject", "${widget.subjectName}"),
                         _buildInfoRow(Icons.laptop, "Session type", "${widget.sessionType}"),
                         _buildInfoRow(Icons.access_time, "Start Time", "${widget.startTime}"),
-                        _buildInfoRow(Icons.timer, "Duration", "${widget.durationMinutes}"),
+                        _buildInfoRow(Icons.timer, "Duration", !widget.isHistory?"${widget.durationMinutes} Minute":"0"),
                       ],
                     ),
                   ),
-                ),
+                    ),
+
                     SizedBox(height: 20,),
+
+                    //Timer for Ending session
                     Card(
                       elevation: 4,
                       shape: RoundedRectangleBorder(
@@ -143,10 +198,11 @@ class _LivesSessionState extends State<LivesSession> {
                                 ),),
                                 SizedBox(width: 10,),
                                 Text(
-                                  formatDuration(remaining),
+                                  !widget.isHistory?
+                                  formatDuration(remaining):"00:00",
                                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                                     fontWeight: FontWeight.bold,
-                                    color: remaining.inSeconds > 10 ? Colors.green : Colors.red,
+                                    color: remaining.inSeconds > 10? Colors.green : Colors.red,
                                   ),
                                 ),
                               ],
@@ -154,7 +210,7 @@ class _LivesSessionState extends State<LivesSession> {
                             SizedBox(height: 25,),
                             SizedBox(
                               width: double.infinity,
-                              child: ElevatedButton.icon(onPressed: (){},
+                              child: ElevatedButton.icon(onPressed: _endSession,
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: Colors.red.shade600,
                                     foregroundColor: Colors.white,
@@ -175,14 +231,16 @@ class _LivesSessionState extends State<LivesSession> {
                         ),
                       ),
                       ),
-                    SizedBox(height: 30,),
 
+                    SizedBox(height: 30,),
+                    //Student names and Roll numbers
                     StreamBuilder(
-                      stream: widget.FirebaseServices.getStudents(widget.className),
+                      stream: FirebaseServices.getStudents(widget.className),
                       builder: (context, snapshot) {
                         if (!snapshot.hasData) return CircularProgressIndicator();
                     
                         final students = snapshot.data!.docs;
+                         studentsList =students;
 
                         return ListView.builder(
                           shrinkWrap: true,
@@ -230,8 +288,53 @@ class _LivesSessionState extends State<LivesSession> {
                 ),
               ),
             ),
+
+            //Save Button
+            Container(
+              width: double.infinity,
+              height: 100,
+              decoration: BoxDecoration(
+                color: Colors.grey[100]
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(18.0),
+                child: ElevatedButton(
+                    onPressed:()async{
+                      await FirebaseServices.saveAttendance(
+                        sessionType: widget.sessionType,
+                  subject: widget.subjectName,
+                  className: widget.className,
+                  date: widget.startTime,
+                  sessionId: widget.sessionCode,
+                  attendanceMap: attendanceMap,
+                  students:studentsList,
+                );
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                        content: Text("Attendance Saved Successfully\nSessionCode :${widget.sessionCode}"),
+                        duration: Duration(seconds: 4),
+                      ));
+                      },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue[400],
+                      elevation: 10
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.save_alt,size: 30,color: Colors.white,),
+                        SizedBox(width: 10,),
+                        Text("Save",
+                        style:Theme.of(context).textTheme.titleMedium?.copyWith(
+                          color: Colors.white
+                        ),
+                        ),
+                      ],
+                    )),
+              ),
+            )
           ],
         ),
+
       ),
     );
   }
