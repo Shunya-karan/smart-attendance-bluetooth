@@ -8,6 +8,7 @@ import 'package:smart_attendance_bluetooth/teacher/screens/lives_session.dart';
 import 'package:smart_attendance_bluetooth/teacher/widgets/blutooth_status.dart';
 import 'package:smart_attendance_bluetooth/teacher/widgets/dateAndtime.dart';
 import 'package:smart_attendance_bluetooth/teacher/widgets/heading&subheading.dart';
+import 'package:smart_attendance_bluetooth/bluetooth_session.dart';
 
 class StartAttendance extends StatefulWidget {
     const StartAttendance({super.key});
@@ -45,45 +46,91 @@ class _StartAttendanceState extends State<StartAttendance> {
   }
 
 
-  Future <void>_startSession()async{
-    if(selectedClassId==null||
-        selectedSubjectId==null||
-        selectedDuration==null){
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Please fill session details"))
-      );
-      return;
-    }
+  // Future <void>_startSession()async{
+  //   if(selectedClassId==null||
+  //       selectedSubjectId==null||
+  //       selectedDuration==null){
+  //     ScaffoldMessenger.of(context).showSnackBar(
+  //       SnackBar(content: Text("Please fill session details"))
+  //     );
+  //     return;
+  //   }
 
-    final sessionId = await FirebaseServices.createAttendanceSession(
-      classId: selectedClassId!,
-      className: selectedClassName!,
-      subjectId: selectedSubjectId!,
-      subjectName: selectedSubjectName!,
-      duration: selectedDuration!,
-      sessionType: sessionType!,
-      teacherId: FirebaseAuth.instance.currentUser!.uid,
-      sessionCode: await generateSessionCode(),
-    );
+  //   final sessionId = await FirebaseServices.createAttendanceSession(
+  //     classId: selectedClassId!,
+  //     className: selectedClassName!,
+  //     subjectId: selectedSubjectId!,
+  //     subjectName: selectedSubjectName!,
+  //     duration: selectedDuration!,
+  //     sessionType: sessionType!,
+  //     teacherId: FirebaseAuth.instance.currentUser!.uid,
+  //     sessionCode: await generateSessionCode(),
+  //   );
 
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content:Text("Session started ${await generateSessionCode()}"
-        )
-    )
+  //   ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+  //       content:Text("Session started ${await generateSessionCode()}"
+  //       )
+  //   )
+  //   );
+  //   Navigator.pushReplacement(context, MaterialPageRoute(builder:(context)=>
+  //     LivesSession(
+  //       startTime: DateTime.now(),
+  //       durationMinutes: 2,
+  //       subjectName: selectedSubjectName!,
+  //       className: selectedClassName!,
+  //       sessionCode:sessionCode!,
+  //     sessionType: sessionType!,
+  //     )
+  //   ));
+
+
+  // }
+
+Future<void> _startSession() async {
+  if (selectedClassId == null ||
+      selectedSubjectId == null ||
+      selectedDuration == null ||
+      sessionType == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Please fill session details")),
     );
-    Navigator.pushReplacement(context, MaterialPageRoute(builder:(context)=>
-      LivesSession(
+    return;
+  }
+
+  final code = await generateSessionCode();
+
+  await FirebaseServices.createAttendanceSession(
+    classId: selectedClassId!,
+    className: selectedClassName!,
+    subjectId: selectedSubjectId!,
+    subjectName: selectedSubjectName!,
+    duration: selectedDuration!,
+    sessionType: sessionType!,
+    teacherId: FirebaseAuth.instance.currentUser!.uid,
+    sessionCode: code,
+  );
+
+  /// 🔥 START BLE HERE
+  await TeacherBleService.startBleSession(
+    sessionCode: code,
+    className: selectedClassName!,
+    subjectName: selectedSubjectName!,
+  );
+
+  Navigator.pushReplacement(
+    context,
+    MaterialPageRoute(
+      builder: (_) => LivesSession(
         startTime: DateTime.now(),
-        durationMinutes: 2,
+        durationMinutes: selectedDuration!,
         subjectName: selectedSubjectName!,
         className: selectedClassName!,
-        sessionCode:sessionCode!,
-      sessionType: sessionType!,
-      )
-    ));
-
-
-  }
+        sessionCode: code,
+        sessionType: sessionType!,
+      ),
+    ),
+  );
+}
 
   @override
   Widget build(BuildContext context) {

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:smart_attendance_bluetooth/teacher/widgets/heading&subheading.dart';
+import 'package:smart_attendance_bluetooth/bluetooth_session.dart';
 
 class LivesSession extends StatefulWidget {
     final DateTime startTime;
@@ -29,38 +30,63 @@ class _LivesSessionState extends State<LivesSession> {
     Timer?_timer;
     late DateTime endTime;
     Duration remaining=Duration.zero;
+    final List<String> presentStudents = [];
+    
 
-  @override
-  void initState() {
-    super.initState();
-    endTime = widget.startTime.add(Duration(minutes: widget.durationMinutes));
-    remaining=endTime.difference(DateTime.now());
-    _startCountdown();
-  }
 
-  void _startCountdown() {
-    _timer?.cancel();
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      final now = DateTime.now();
-      final diff = endTime.difference(now);
+@override
+void initState() {
+  super.initState();
 
-      if (diff.isNegative || diff.inSeconds == 0) {
-        timer.cancel();
-        setState(() {
-          remaining = Duration.zero;
-        });
-        return;
-      }
+  endTime = widget.startTime.add(
+    Duration(minutes: widget.durationMinutes),
+  );
+
+  remaining = endTime.difference(DateTime.now());
+  _startCountdown();
+
+  /// 🔥 LISTEN BLE ATTENDANCE
+  TeacherBleService.listenAttendance((roll) {
+    if (!presentStudents.contains(roll)) {
       setState(() {
-        remaining = diff;
+        presentStudents.add(roll);
       });
+    }
+  });
+}
+
+
+void _startCountdown() {
+  _timer?.cancel();
+  _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+    final now = DateTime.now();
+    final diff = endTime.difference(now);
+
+    if (diff.isNegative || diff.inSeconds == 0) {
+      timer.cancel();
+
+      /// 🔴 STOP BLE
+      TeacherBleService.stopBleSession();
+
+      setState(() {
+        remaining = Duration.zero;
+      });
+      return;
+    }
+
+    setState(() {
+      remaining = diff;
     });
-  }
-  @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
-  }
+  });
+}
+
+@override
+void dispose() {
+  _timer?.cancel();
+  TeacherBleService.stopBleSession();
+  super.dispose();
+}
+
 
   String formatDuration(Duration d) {
     final minutes = d.inMinutes.remainder(60).toString().padLeft(2, '0');
@@ -152,7 +178,10 @@ class _LivesSessionState extends State<LivesSession> {
                             SizedBox(height: 25,),
                             SizedBox(
                               width: double.infinity,
-                              child: ElevatedButton.icon(onPressed: (){},
+                              child: ElevatedButton.icon(onPressed: ()async{
+                                await TeacherBleService.stopBleSession();
+                                  Navigator.pop(context);
+                              },
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: Colors.red.shade600,
                                     foregroundColor: Colors.white,
