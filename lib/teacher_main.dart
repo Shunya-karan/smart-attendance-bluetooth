@@ -1,20 +1,16 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:smart_attendance_bluetooth/student/student_home.dart';
-import 'package:smart_attendance_bluetooth/student/student_info.dart';
-import 'package:smart_attendance_bluetooth/student/student_main.dart';
+import 'package:smart_attendance_bluetooth/firebase_options.dart';
+import 'package:smart_attendance_bluetooth/teacher/layout.dart';
+import 'package:smart_attendance_bluetooth/teacher/screens/lives_session.dart';
+import 'teacher/screens/teacher_login.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
-void main() {
+import 'package:firebase_core/firebase_core.dart';
+void main() async{
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   runApp(const MyApp());
 }
-
-Future<bool> hasStudentInfo() async {
-  final prefs = await SharedPreferences.getInstance();
-  return prefs.getString("name") != null &&
-      prefs.getString("seatNumber") != null;
-}
-
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -24,22 +20,25 @@ class MyApp extends StatelessWidget {
     return  MaterialApp(
       title: "Attendance App",
       debugShowCheckedModeBanner: false,
-      home: FutureBuilder<bool>(
-        future: hasStudentInfo(),
-        builder: (context, snapshot) {
-          if (!snapshot.hasData) {
-            return const Scaffold(
-              body: Center(child: CircularProgressIndicator()),
-            );
-          }
+      home: FirebaseAuth.instance.currentUser!=null
+          ? Center(
+            child:teacher_Layout()
+          ):TeacherLogin(),
 
-          if (snapshot.data == true) {
-            return  StudentMain();
-          } else {
-            return const StudentInfo();
-          }
-        },
-      ),
+      // StreamBuilder(
+      //   stream: FirebaseAuth.instance.authStateChanges(),
+      //   builder: (context, asyncSnapshot){
+      //     if(asyncSnapshot.connectionState==ConnectionState.waiting){
+      //       return Center(
+      //         child:CircularProgressIndicator() ,
+      //       );
+      //     }
+      //    if(asyncSnapshot.data!=null){
+      //      return teacher_Layout();
+      //    }
+      // return TeacherLogin();
+      //   }
+      // ),
       theme: ThemeData(
           fontFamily: GoogleFonts.lato().fontFamily,
         colorScheme: ColorScheme.fromSeed(
@@ -58,7 +57,7 @@ class MyApp extends StatelessWidget {
           titleSmall: TextStyle(
             fontWeight: FontWeight.bold,
               fontSize: 16
-          ), 
+          ),
           titleMedium: TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 20
@@ -70,7 +69,7 @@ class MyApp extends StatelessWidget {
         ),
         inputDecorationTheme: InputDecorationTheme(
           hintStyle: TextStyle(
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.w500,
             fontSize: 16
           ),
         ),
