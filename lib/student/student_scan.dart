@@ -3,7 +3,7 @@ import 'package:app_settings/app_settings.dart';
 import 'dart:async';
 import 'package:smart_attendance_bluetooth/student/other_required.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
-
+import 'package:permission_handler/permission_handler.dart';
 
 class StudentScan extends StatefulWidget {
   final bool active;
@@ -13,31 +13,30 @@ class StudentScan extends StatefulWidget {
   State<StudentScan> createState() => _StudentScanState();
 }
 
-class _StudentScanState extends State<StudentScan> with WidgetsBindingObserver{
+class _StudentScanState extends State<StudentScan> with WidgetsBindingObserver {
   bool isBtOn = false;
   bool started = false;
+  bool scanning = false;
+
   bool dialogShown = false;
   Map<String, Timer> timers = {};
   Map<String, String> nearbySessions = {};
 
+  final Guid serviceUuid = Guid("00001810-0000-1000-8000-00805f9b34fb");
 
-  final Guid serviceUuid =
-    Guid("00001810-0000-1000-8000-00805f9b34fb");
-
-  final Guid charUuid =
-    Guid("00002a35-0000-1000-8000-00805f9b34fb");
+  final Guid charUuid = Guid("00002a35-0000-1000-8000-00805f9b34fb");
 
   bool attendanceSent = false;
-    StreamSubscription<List<ScanResult>>? scanSub;
+  StreamSubscription<List<ScanResult>>? scanSub;
 
-
-  Map<String, int> sessionTimers = {
-  };
+  Map<String, int> sessionTimers = {};
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+
+    initBluetoothUI();
 
     sessionTimers.forEach((id, time) {
       if (time > 0) {
@@ -46,9 +45,10 @@ class _StudentScanState extends State<StudentScan> with WidgetsBindingObserver{
     });
   }
 
-@override
+  @override
 void dispose() {
   scanSub?.cancel();
+  scanSub = null;
   FlutterBluePlus.stopScan();
   WidgetsBinding.instance.removeObserver(this);
 
@@ -58,144 +58,143 @@ void dispose() {
   super.dispose();
 }
 
-@override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.inactive || state == AppLifecycleState.paused) {
-      // Screen is not active or app is in background
-      setState(() {
-        started = false;
-        // stop scanning if you want
-        scanSub?.cancel();
-        FlutterBluePlus.stopScan();
-      });
-    } else if (state == AppLifecycleState.resumed) {
-      // Screen is visible again
-      if (widget.active && !started) {
-        setState(() => started = true);
-        initBluetoothUI();
-        startLiveScan();
-      }
-    }
-  }
 
+  void startLiveScan() async {
+  if (!isBtOn || scanning) return;
 
+  scanning = true;
+  scanSub?.cancel();
 
-void startLiveScan() async {
-  if (!isBtOn) return;
+  print("🔵 STARTING BLE SCAN");
 
-  await FlutterBluePlus.startScan(timeout: const Duration(seconds: 4));
-
-  FlutterBluePlus.scanResults.listen((results) {
-    if (!mounted) return;
-
+  scanSub = FlutterBluePlus.scanResults.listen((results) {
     for (final r in results) {
-      final serviceUuids = r.advertisementData.serviceUuids;
+      final name = r.advertisementData.advName;
 
-      if (serviceUuids.contains(serviceUuid)) {
-        // Extract session ID and owner from advertisement (for example)
-        // Here, we assume the device name contains sessionId|owner
-        final advName = r.advertisementData.localName;
-        if (advName.contains("|")) {
-          final parts = advName.split("|");
-          final sessionId = parts[0];
-          final owner = parts[1];
+if (name.isEmpty) return;
 
-          setState(() {
-            nearbySessions[sessionId] = owner;
-          });
-        }
+print("FOUND DEVICE NAME: $name");
+
+if (!name.contains("|")) return;
+
+final parts = name.split("|");
+if (parts.length < 3) return;
+
+final sessionId = parts[0];
+final owner = parts[1];
+
+
+      if (!nearbySessions.containsKey(sessionId)) {
+        setState(() {
+          nearbySessions[sessionId] = owner;
+          sessionTimers[sessionId] = 120;
+        });
+        startTimer(sessionId);
       }
     }
   });
+
+  await FlutterBluePlus.startScan(
+    timeout: const Duration(seconds: 30),
+    androidUsesFineLocation: true,
+  );
+  scanning = false;
+
 }
 
 
-Future<void> markAttendance(String sessionId) async {
-  if (!isBtOn) {
-    showSnack("Turn ON Bluetooth first");
-    return;
-  }
 
-  attendanceSent = false;
+  Future<void> markAttendance(String sessionId) async {
+    if (!isBtOn) {
+      showSnack("Turn ON Bluetooth first");
+      return;
+    }
 
-  await FlutterBluePlus.startScan(
-    timeout: const Duration(seconds: 6),
-  );
+    attendanceSent = false;
 
-  scanSub = FlutterBluePlus.scanResults.listen((results) async {
-    for (final r in results) {
-      if (attendanceSent) return;
+    scanSub = FlutterBluePlus.scanResults.listen((results) async {
+      for (final r in results) {
+        if (attendanceSent) return;
 
-      if (r.advertisementData.serviceUuids.contains(serviceUuid)) {
-        try {
-          await FlutterBluePlus.stopScan();
+        if (r.advertisementData.serviceUuids.contains(serviceUuid)) {
+          try {
+            await FlutterBluePlus.stopScan();
 
-          final device = r.device;
-          await device.connect(timeout: const Duration(seconds: 8));
+            final device = r.device;
+            await device.connect(timeout: const Duration(seconds: 8));
 
-          final services = await device.discoverServices();
-          for (final s in services) {
-            if (s.uuid == serviceUuid) {
-              for (final c in s.characteristics) {
-                if (c.uuid == charUuid) {
-                  final attendanceData =
-                      "$sessionId|23";
+            final services = await device.discoverServices();
+            for (final s in services) {
+              if (s.uuid == serviceUuid) {
+                for (final c in s.characteristics) {
+                  if (c.uuid == charUuid) {
+                    final attendanceData = "$sessionId|23";
 
-                  await c.write(attendanceData.codeUnits);
-                  attendanceSent = true;
-                  break;
+                    await c.write(attendanceData.codeUnits);
+                    attendanceSent = true;
+                    break;
+                  }
                 }
               }
             }
-          }
 
-          await device.disconnect();
+            await device.disconnect();
 
-          if (attendanceSent && mounted) {
-            showSnack("Attendance marked ✅");
+            if (attendanceSent && mounted) {
+              showSnack("Attendance marked ✅");
+            }
+            scanSub?.cancel();
+            return;
+          } catch (e) {
+            showSnack("Failed to mark attendance");
           }
-          scanSub?.cancel();
-          return;
-        } catch (e) {
-          showSnack("Failed to mark attendance");
         }
       }
-    }
-  });
-}
+    });
+  }
 
-
-void showSnack(String msg) {
-  ScaffoldMessenger.of(context).clearSnackBars();
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(content: Text(msg)),
-  );
-}
-
-
-
+  void showSnack(String msg) {
+    ScaffoldMessenger.of(context).clearSnackBars();
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
 
   void initBluetoothUI() async {
-  await AppBluetoothService.requestPermissions();
+    await AppBluetoothService.requestPermissions();
+    final status = await Permission.location.status;
+print("Location permission: $status");
 
-  AppBluetoothService.adapterState().listen((state) {
-    if (!mounted) return;
 
-    final btOn = state == BluetoothAdapterState.on;
+    AppBluetoothService.adapterState().listen((state) {
+      if (!mounted) return;
 
-    setState(() => isBtOn = btOn);
+      final btOn = state == BluetoothAdapterState.on;
 
-    if (!btOn && !dialogShown) {
-      dialogShown = true;
-      _showBtDialog();
+      setState(() => isBtOn = btOn);
+
+      if (btOn && scanSub == null) {
+      startLiveScan();
     }
 
-    if (btOn && dialogShown) {
-      Navigator.pop(context);
-      dialogShown = false;
+    // 🔴 Stop scan ONLY when BT turns OFF
+    if (!btOn && scanSub != null) {
+      scanSub?.cancel();
+      scanSub = null;
+      FlutterBluePlus.stopScan();
     }
-  });
-}
+
+
+      if (!btOn && !dialogShown) {
+        dialogShown = true;
+        _showBtDialog();
+      }
+
+      if (btOn && dialogShown) {
+        Navigator.pop(context);
+        dialogShown = false;
+      }
+    });
+  }
+
   void _showBtDialog() {
     showDialog(
       context: context,
@@ -314,10 +313,11 @@ void showSnack(String msg) {
           ),
           SizedBox(height: 5),
           ElevatedButton(
-            onPressed: timeLeft > 0? () {
-            markAttendance(sessionID);
-              }
-              : null,
+            onPressed: timeLeft > 0
+                ? () {
+                    markAttendance(sessionID);
+                  }
+                : null,
             style: ElevatedButton.styleFrom(
               backgroundColor: timeLeft > 0
                   ? Theme.of(context).colorScheme.secondary
@@ -343,110 +343,111 @@ void showSnack(String msg) {
     );
   }
 
-
-
   @override
   Widget build(BuildContext context) {
-
     return SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.start,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  height: 100,
-                  width: 400,
-                  decoration: BoxDecoration(
-                    border: Border.all(
-                      color: isBtOn ? Colors.blueAccent : Colors.redAccent,
-                      width: 1.3,
-                    ),
-                    borderRadius: BorderRadius.circular(12),
-                    color: const Color.fromARGB(255, 236, 250, 255),
+      child: Align(
+        alignment: Alignment.topCenter,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                height: 100,
+                width: 400,
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: isBtOn ? Colors.blueAccent : Colors.redAccent,
+                    width: 1.3,
                   ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    children: [
-                      SizedBox(width: 10),
-                      Icon(
-                        isBtOn
-                            ? Icons.bluetooth_rounded
-                            : Icons.bluetooth_disabled_rounded,
-                        size: 40,
-                        color: isBtOn ? Colors.blue : Colors.red,
+                  borderRadius: BorderRadius.circular(12),
+                  color: const Color.fromARGB(255, 236, 250, 255),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  children: [
+                    SizedBox(width: 10),
+                    Icon(
+                      isBtOn
+                          ? Icons.bluetooth_rounded
+                          : Icons.bluetooth_disabled_rounded,
+                      size: 40,
+                      color: isBtOn ? Colors.blue : Colors.red,
+                    ),
+                    SizedBox(width: 10),
+                    Text(
+                      "Bluetooth",
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
                       ),
-                      SizedBox(width: 10),
-                      Text(
-                        "Bluetooth",
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black,
-                        ),
-                      ),
-                      SizedBox(width: 145),
-                      Switch(
-                        value: isBtOn,
-                        onChanged: (bool value) {
-                          AppSettings.openAppSettings(
-                            type: AppSettingsType.bluetooth,
-                          );
-                        },
-                      ),
-                      SizedBox(width: 10),
-                    ],
+                    ),
+                    SizedBox(width: 145),
+                    Switch(
+                      value: isBtOn,
+                      onChanged: (bool value) {
+                        AppSettings.openAppSettings(
+                          type: AppSettingsType.bluetooth,
+                        );
+                      },
+                    ),
+                    SizedBox(width: 10),
+                  ],
+                ),
+              ),
+              SizedBox(height: 20),
+              //Text(StudentHome.net? "Online" : "Offline",),
+              ListTile(
+                title: TextField(
+                  decoration: InputDecoration(
+                    labelText: "Session ID",
+                    hintText: "Enter Session ID",
                   ),
                 ),
-                SizedBox(height: 20),
-                //Text(StudentHome.net? "Online" : "Offline",),
-                ListTile(
-                  title: TextField(
-                    decoration: InputDecoration(
-                      labelText: "Session ID",
-                      hintText: "Enter Session ID",
-                    ),
-                  ),
-                  minLeadingWidth: 0,
-                  leading: SizedBox(width: 3),
-                  trailing: IconButton(
-                    onPressed: () {},
-                    icon: Icon(
-                      Icons.search_rounded,
-                      color: Colors.grey,
-                      size: 30,
-                    ),
-                  ),
-                  tileColor: const Color.fromARGB(255, 238, 220, 167),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(50),
+                minLeadingWidth: 0,
+                leading: SizedBox(width: 3),
+                trailing: IconButton(
+                  onPressed: () {},
+                  icon: Icon(
+                    Icons.search_rounded,
+                    color: Colors.grey,
+                    size: 30,
                   ),
                 ),
-                SizedBox(height: 30),
-                Text(
-                  "Nearby Sessions",
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
-                  ),
+                tileColor: const Color.fromARGB(255, 238, 220, 167),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(50),
                 ),
-                SizedBox(height: 20),
-                ...nearbySessions.entries.map((entry) {
-  final sessionId = entry.key;
-  final owner = entry.value;
-  return Padding(
-    padding: const EdgeInsets.only(bottom: 20),
-    child: buildSession(sessionId, owner),
-  );
-}).toList(),
-                SizedBox(height: 50),
-              ],
-            ),
+              ),
+              SizedBox(height: 30),
+              Text(
+                "Nearby Sessions",
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
+                ),
+              ),
+              SizedBox(height: 20),
+              if (nearbySessions.isEmpty)
+                Text('No nearby sessions found', style: TextStyle(fontSize: 16, color: Colors.red))
+              else
+              ...nearbySessions.entries.map((entry) {
+                final sessionId = entry.key;
+                final owner = entry.value;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 20),
+                  child: buildSession(sessionId, owner),
+                );
+              }).toList(),
+              SizedBox(height: 50), 
+            ],
           ),
         ),
+      ),
     );
   }
 }

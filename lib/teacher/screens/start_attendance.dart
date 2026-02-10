@@ -113,7 +113,7 @@ Future<void> _startSession() async {
 
       print(code);
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content:Text("Session started $code}"
+        content:Text("Session started $code"
         )
     )
     );

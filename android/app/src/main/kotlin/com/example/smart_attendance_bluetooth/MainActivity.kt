@@ -96,6 +96,9 @@ private fun startBleServer(
     service.addCharacteristic(attendanceChar)
     gattServer?.addService(service)
 
+    bluetoothAdapter.name = sessionCode
+
+
     startAdvertising(sessionCode!!)
 
 
@@ -133,7 +136,7 @@ private fun stopBleServer() {
     val data = AdvertiseData.Builder()
         .addServiceUuid(ParcelUuid(SERVICE_UUID))
         .addManufacturerData(0x1234, payloadBytes) // company ID (any 16-bit)
-        .setIncludeDeviceName(false)
+        .setIncludeDeviceName(true)
         .build()
 
     advertiser?.startAdvertising(settings, data, advertiseCallback)
