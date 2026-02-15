@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:app_settings/app_settings.dart';
 import 'dart:async';
 import 'package:smart_attendance_bluetooth/student/other_required.dart';
+import 'package:smart_attendance_bluetooth/student/ble_scan.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 
@@ -14,22 +15,21 @@ class StudentScan extends StatefulWidget {
 }
 
 class _StudentScanState extends State<StudentScan> with WidgetsBindingObserver {
+  BleManager bleManager = BleManager();
+  StreamSubscription<List<BleSession>>? sessionSub;
+  List<BleSession> nearbySessions = [];
   bool isBtOn = false;
   bool started = false;
   bool scanning = false;
 
+  bool isLocationOn = false;
+bool isLocationPermissionGranted = false;
+
+
   bool dialogShown = false;
-  Map<String, Timer> timers = {};
-  Map<String, String> nearbySessions = {};
-
-  final Guid serviceUuid = Guid("00001810-0000-1000-8000-00805f9b34fb");
-
-  final Guid charUuid = Guid("00002a35-0000-1000-8000-00805f9b34fb");
 
   bool attendanceSent = false;
-  StreamSubscription<List<ScanResult>>? scanSub;
 
-  Map<String, int> sessionTimers = {};
 
   @override
   void initState() {
@@ -37,126 +37,61 @@ class _StudentScanState extends State<StudentScan> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
 
     initBluetoothUI();
+    checkLocationStatus();
 
-    sessionTimers.forEach((id, time) {
-      if (time > 0) {
-        startTimer(id);
-      }
-    });
   }
 
-  @override
+@override
 void dispose() {
-  scanSub?.cancel();
-  scanSub = null;
-  FlutterBluePlus.stopScan();
-  WidgetsBinding.instance.removeObserver(this);
+  sessionSub?.cancel();
+sessionSub = null;
+bleManager.stopScan();
 
-  for (final timer in timers.values) {
-    timer.cancel();
-  }
+  WidgetsBinding.instance.removeObserver(this);
   super.dispose();
 }
 
 
-  void startLiveScan() async {
-  if (!isBtOn || scanning) return;
+Future<void> startLiveScan() async {
+  if (sessionSub != null) return;
+  if (!mounted) return;
+  if (!isBtOn || !isLocationOn || !isLocationPermissionGranted) return;
 
-  scanning = true;
-  scanSub?.cancel();
+  await sessionSub?.cancel();
+  nearbySessions.clear();
 
-  print("🔵 STARTING BLE SCAN");
-
-  scanSub = FlutterBluePlus.scanResults.listen((results) {
-    for (final r in results) {
-      final name = r.advertisementData.advName;
-
-if (name.isEmpty) return;
-
-print("FOUND DEVICE NAME: $name");
-
-if (!name.contains("|")) return;
-
-final parts = name.split("|");
-if (parts.length < 3) return;
-
-final sessionId = parts[0];
-final owner = parts[1];
-
-
-      if (!nearbySessions.containsKey(sessionId)) {
-        setState(() {
-          nearbySessions[sessionId] = owner;
-          sessionTimers[sessionId] = 120;
-        });
-        startTimer(sessionId);
-      }
-    }
+  sessionSub = bleManager.startSessionScan().listen((sessions) {
+    if (!mounted) return;
+    setState(() {
+      nearbySessions = sessions;
+      
+    });
   });
-
-  await FlutterBluePlus.startScan(
-    timeout: const Duration(seconds: 30),
-    androidUsesFineLocation: true,
-  );
-  scanning = false;
-
 }
 
-
-
-  Future<void> markAttendance(String sessionId) async {
-    if (!isBtOn) {
-      showSnack("Turn ON Bluetooth first");
-      return;
-    }
-
-    attendanceSent = false;
-
-    scanSub = FlutterBluePlus.scanResults.listen((results) async {
-      for (final r in results) {
-        if (attendanceSent) return;
-
-        if (r.advertisementData.serviceUuids.contains(serviceUuid)) {
-          try {
-            await FlutterBluePlus.stopScan();
-
-            final device = r.device;
-            await device.connect(timeout: const Duration(seconds: 8));
-
-            final services = await device.discoverServices();
-            for (final s in services) {
-              if (s.uuid == serviceUuid) {
-                for (final c in s.characteristics) {
-                  if (c.uuid == charUuid) {
-                    final attendanceData = "$sessionId|23";
-
-                    await c.write(attendanceData.codeUnits);
-                    attendanceSent = true;
-                    break;
-                  }
-                }
-              }
-            }
-
-            await device.disconnect();
-
-            if (attendanceSent && mounted) {
-              showSnack("Attendance marked ✅");
-            }
-            scanSub?.cancel();
-            return;
-          } catch (e) {
-            showSnack("Failed to mark attendance");
-          }
-        }
-      }
-    });
-  }
 
   void showSnack(String msg) {
     ScaffoldMessenger.of(context).clearSnackBars();
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
+
+Future<void> checkLocationStatus() async {
+  final serviceOn = await Permission.location.serviceStatus.isEnabled;
+  final permission = await Permission.locationWhenInUse.status;
+
+  if (!mounted) return;
+
+  setState(() {
+    isLocationOn = serviceOn;
+    isLocationPermissionGranted = permission.isGranted;
+  });
+
+  if (isBtOn && isLocationOn && isLocationPermissionGranted) {
+    startLiveScan();
+  }
+}
+
+
 
   void initBluetoothUI() async {
     await AppBluetoothService.requestPermissions();
@@ -171,16 +106,10 @@ print("Location permission: $status");
 
       setState(() => isBtOn = btOn);
 
-      if (btOn && scanSub == null) {
-      startLiveScan();
-    }
-
-    // 🔴 Stop scan ONLY when BT turns OFF
-    if (!btOn && scanSub != null) {
-      scanSub?.cancel();
-      scanSub = null;
-      FlutterBluePlus.stopScan();
-    }
+    if (!btOn) {
+  sessionSub?.cancel();
+  bleManager.stopScan();
+}
 
 
       if (!btOn && !dialogShown) {
@@ -192,6 +121,10 @@ print("Location permission: $status");
         Navigator.pop(context);
         dialogShown = false;
       }
+
+ if (btOn && sessionSub == null && isLocationOn && isLocationPermissionGranted) {
+  startLiveScan();
+}
     });
   }
 
@@ -218,130 +151,151 @@ print("Location permission: $status");
     );
   }
 
-  void startTimer(String sessionId) {
-    // Cancel existing timer if any
-    timers[sessionId]?.cancel();
-
-    timers[sessionId] = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (!mounted) {
-        timer.cancel();
-        return;
-      }
-
-      final current = sessionTimers[sessionId] ?? 0;
-
-      if (current <= 0) {
-        timer.cancel();
-      } else {
-        setState(() {
-          sessionTimers[sessionId] = current - 1;
-        });
-      }
-    });
-  }
-
-  String formatTime(int seconds) {
-    final minutes = seconds ~/ 60;
-    final secs = seconds % 60;
-    return "${minutes.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}";
-  }
-
-  Widget buildSession(String sessionID, String owner) {
-    final timeLeft = sessionTimers[sessionID] ?? 0;
-
-    return Container(
-      width: 400,
-      decoration: BoxDecoration(
-        border: Border.all(
-          color: timeLeft > 0
-              ? Theme.of(context).colorScheme.secondary
-              : Colors.red,
-          width: 1.0,
+ Widget buildSession(BleSession session) {
+  return Container(
+    width: 400,
+    decoration: BoxDecoration(
+      border: Border.all(
+        color: Theme.of(context).colorScheme.secondary,
+        width: 1.0,
+      ),
+      borderRadius: BorderRadius.circular(12),
+      color: Colors.white,
+    ),
+    child: Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(8),
+          child: Text(
+            "By: ${session.owner}",
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey,
+            ),
+          ),
         ),
-        borderRadius: BorderRadius.circular(12),
-        color: Colors.white,
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                padding: EdgeInsets.all(8),
-                child: Text(
-                  "By: $owner",
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey,
-                  ),
-                ),
-              ),
-
-              Container(
-                padding: EdgeInsets.all(8),
-                child: Text(
-                  formatTime(timeLeft),
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.red,
-                  ),
-                ),
-              ),
-            ],
+        Text(
+          session.sessionId,
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Theme.of(context).colorScheme.primary,
           ),
-          Container(
-            padding: EdgeInsets.all(8),
-            child: Text(
-              sessionID,
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-            ),
-          ),
-          SizedBox(height: 5),
-          Divider(
-            color: Colors.grey,
-            thickness: 0.5,
-            indent: 20,
-            endIndent: 20,
-          ),
-          SizedBox(height: 5),
-          ElevatedButton(
-            onPressed: timeLeft > 0
-                ? () {
-                    markAttendance(sessionID);
-                  }
-                : null,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: timeLeft > 0
-                  ? Theme.of(context).colorScheme.secondary
-                  : Colors.grey,
-              padding: EdgeInsets.symmetric(vertical: 8, horizontal: 20),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              elevation: 2,
-            ),
-            child: Text(
-              "Mark Attendance",
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-          ),
-          SizedBox(height: 15),
-        ],
-      ),
+        ),
+        const Divider(thickness: 0.5),
+        ElevatedButton(
+            onPressed: () async {
+    final success = await bleManager.markAttendance(
+      session: session,
+      studentId: "24", // later: real student ID
     );
-  }
+
+    showSnack(
+      success
+          ? "Attendance marked ✅"
+          : "Attendance failed ❌",
+    );
+  },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Theme.of(context).colorScheme.secondary,
+            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 20),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+          child: const Text(
+            "Mark Attendance",
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+        ),
+        const SizedBox(height: 15),
+      ],
+    ),
+  );
+}
+
+Widget locationCard() {
+  final allGood = isLocationOn && isLocationPermissionGranted;
+
+  return Container(
+    height: 110,
+    width: 400,
+    decoration: BoxDecoration(
+      border: Border.all(
+        color: allGood ? Colors.green : Colors.redAccent,
+        width: 1.3,
+      ),
+      borderRadius: BorderRadius.circular(12),
+      color: const Color.fromARGB(255, 240, 255, 240),
+    ),
+    child: Row(
+      children: [
+        const SizedBox(width: 10),
+        Icon(
+          allGood
+              ? Icons.location_on_outlined
+              : Icons.location_off_outlined,
+          size: 40,
+          color: allGood ? Colors.green : Colors.red,
+        ),
+        const SizedBox(width: 10),
+        Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              "Location",
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            Text(
+              isLocationPermissionGranted
+                  ? "Permission: Granted"
+                  : "Permission: Required",
+              style: TextStyle(
+                fontSize: 13,
+                color: isLocationPermissionGranted
+                    ? Colors.green
+                    : Colors.red,
+              ),
+            ),
+            Text(
+              isLocationOn ? "Service: ON" : "Service: OFF",
+              style: TextStyle(
+                fontSize: 13,
+                color: isLocationOn ? Colors.green : Colors.red,
+              ),
+            ),
+          ],
+        ),
+        const Spacer(),
+        Switch(
+          value: allGood,
+          onChanged: (_) async {
+            if (!isLocationPermissionGranted) {
+              await Permission.locationWhenInUse.request();
+            } else if (!isLocationOn) {
+              AppSettings.openAppSettings(
+                type: AppSettingsType.location,
+              );
+            }
+            await checkLocationStatus();
+          },
+        ),
+        const SizedBox(width: 10),
+      ],
+    ),
+  );
+}
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -398,6 +352,8 @@ print("Location permission: $status");
                   ],
                 ),
               ),
+              SizedBox(height: 7),
+              locationCard(),
               SizedBox(height: 20),
               //Text(StudentHome.net? "Online" : "Offline",),
               ListTile(
@@ -423,6 +379,9 @@ print("Location permission: $status");
                 ),
               ),
               SizedBox(height: 30),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
               Text(
                 "Nearby Sessions",
                 style: TextStyle(
@@ -431,18 +390,35 @@ print("Location permission: $status");
                   color: Colors.black,
                 ),
               ),
+              IconButton(
+                onPressed: () {
+  if (!isLocationOn || !isLocationPermissionGranted) {
+    showSnack("Enable Location to scan sessions");
+    return;
+  }
+  startLiveScan();
+},
+                icon: Icon(
+                  Icons.refresh_rounded,
+                  color: Colors.grey,
+                  size: 30,
+                ),
+              ),]),
               SizedBox(height: 20),
               if (nearbySessions.isEmpty)
-                Text('No nearby sessions found', style: TextStyle(fontSize: 16, color: Colors.red))
-              else
-              ...nearbySessions.entries.map((entry) {
-                final sessionId = entry.key;
-                final owner = entry.value;
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 20),
-                  child: buildSession(sessionId, owner),
-                );
-              }).toList(),
+  const Text(
+    'No nearby sessions found',
+    style: TextStyle(fontSize: 16, color: Colors.red),
+  )
+else
+  ...nearbySessions.map((session) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 20),
+      child: buildSession(session),
+    );
+  }).toList(),
+
+
               SizedBox(height: 50), 
             ],
           ),

@@ -52,7 +52,6 @@ if (!docSnapshot.exists) {
 final s = docSnapshot['code']; 
 
     sessionCode = "$c|$s|$number";
-    print(sessionCode! +'wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww');
 
     return "${sessionCode}";
   }
@@ -128,6 +127,9 @@ Future<void> _startSession() async {
     teacherId: FirebaseAuth.instance.currentUser!.uid,
     sessionCode: code,
   );
+
+  await TeacherBleService.stopBleSession();
+
 
   /// 🔥 START BLE HERE
   await TeacherBleService.startBleSession(
