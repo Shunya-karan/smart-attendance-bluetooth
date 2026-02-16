@@ -5,13 +5,9 @@ class TeacherBleService {
 
   static Future<void> startBleSession({
     required String sessionCode,
-    required String className,
-    required String subjectName,
   }) async {
     await _channel.invokeMethod('startSession', {
       "sessionCode": sessionCode,
-      "className": className,
-      "subjectName": subjectName,
     });
   }
 

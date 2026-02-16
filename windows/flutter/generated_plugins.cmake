@@ -4,9 +4,10 @@
 
 list(APPEND FLUTTER_PLUGIN_LIST
   cloud_firestore
+  connectivity_plus
   firebase_auth
   firebase_core
-  flutter_blue_plus_winrt
+  flutter_ble_peripheral
   geolocator_windows
   permission_handler_windows
 )

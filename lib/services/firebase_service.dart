@@ -29,7 +29,6 @@ class FirebaseService {
         .snapshots();
   }
 
-
   Stream<QuerySnapshot>Subjects(selectedClassId){
     return FirebaseFirestore.instance
         .collection("classes")
@@ -49,7 +48,6 @@ class FirebaseService {
     required String teacherId,
     required String sessionCode,
   }) async {
-
     final doc = FirebaseFirestore.instance
         .collection("attendance_sessions")
         .doc(sessionCode);
@@ -74,14 +72,21 @@ class FirebaseService {
   }
 
 
-  Future<QuerySnapshot> subjectCode(String? classID) {
-    return FirebaseFirestore.instance
+  Future<String?> getSubjectCode(String?classId, String?subjectId) async {
+    final doc = await FirebaseFirestore.instance
         .collection("classes")
-        .doc(classID)
+        .doc(classId)
         .collection("subjects")
-        .where("isActive", isEqualTo: true)
+        .doc(subjectId)
         .get();
+
+    if (doc.exists) {
+      return doc.data()?["code"]; // field name = code
+    }
+
+    return null;
   }
+
 
   Future<void>endSession(String?sessionId){
     return FirebaseFirestore.instance
@@ -91,6 +96,85 @@ class FirebaseService {
       "status":"closed",
       "endTime":FieldValue.serverTimestamp()
     });
+  }
+
+
+  final FirebaseFirestore firestore = FirebaseFirestore.instance;
+
+  /// 🔵 Get students of a class
+  Stream<QuerySnapshot> getStudents(String?className) {
+    return firestore
+        .collection("students")
+        .where("className", isEqualTo: className)
+        .snapshots();
+  }
+
+  /// 🔵 Save or update attendance
+  Future<void> saveAttendance({
+    required String sessionId,
+    required String className,
+    required String subject,
+    required String sessionType,
+    required DateTime date,
+    required Map<String, bool> attendanceMap,
+    required List students,
+  }) async {
+
+    final sessionRef =
+    firestore.collection("attendance_records").doc(sessionId);
+
+    // create/update session doc
+    await sessionRef.set({
+      "class": className,
+      "subject": subject,
+      "sessiontype": sessionType,
+      "date": date.toIso8601String(),
+      "createdAt": FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+
+    final batch = firestore.batch();
+
+    for (var student in students) {
+      final studentId = student.id;
+      final present = attendanceMap[studentId] ?? false;
+
+      final docRef =
+      sessionRef.collection("students").doc(studentId);
+
+      batch.set(docRef, {
+        "name": student["name"],
+        "rollNo": student["rollNo"],
+        "present": present,
+        "markedAt": FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    }
+
+    await batch.commit();
+  }
+
+  /// 🔵 Load old attendance
+  Future<Map<String, bool>> loadAttendance(String sessionId) async {
+    final snap = await firestore
+        .collection("attendance_records")
+        .doc(sessionId)
+        .collection("students")
+        .get();
+
+    Map<String, bool> map = {};
+
+    for (var doc in snap.docs) {
+      map[doc.id] = doc["present"] ?? false;
+    }
+
+    return map;
+  }
+
+  /// 🔵 Get session history
+  Stream<QuerySnapshot> getSessionHistory() {
+    return firestore
+        .collection("attendance_records")
+        .orderBy("createdAt", descending: true)
+        .snapshots();
   }
 
 

@@ -1,18 +1,47 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:smart_attendance_bluetooth/teacher/widgets/QuickAction.dart';
 import 'package:smart_attendance_bluetooth/teacher/widgets/Statscard.dart';
 import 'package:smart_attendance_bluetooth/teacher/widgets/blutooth_status.dart';
 import 'package:smart_attendance_bluetooth/teacher/widgets/notification.dart';
 
-class TeacherDashboard extends StatelessWidget {
+class TeacherDashboard extends StatefulWidget {
   const TeacherDashboard({super.key});
 
+  @override
+  State<TeacherDashboard> createState() => _TeacherDashboardState();
+}
+
+class _TeacherDashboardState extends State<TeacherDashboard> {
+  String teacherName="";
+
+
+  Future<void> fetchTeacherName() async {
+    final uid = FirebaseAuth.instance.currentUser!.uid;
+
+    final doc = await FirebaseFirestore.instance
+        .collection("teachers")
+        .doc(uid)
+        .get();
+
+    if (doc.exists) {
+      setState(() {
+        teacherName = doc["name"];
+      });
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    fetchTeacherName();
+  }
 
   @override
   Widget build(BuildContext context) {
 
     final screenWidth = MediaQuery.of(context).size.width;
-    final spacing = screenWidth > 400 ? 140.0 : 100.0;
 
     return Scaffold(
       body: Container(
@@ -39,7 +68,7 @@ class TeacherDashboard extends StatelessWidget {
                         ),
                         SizedBox(height: 5),
                         Text(
-                          'Karan Yadav',
+                            teacherName.isEmpty ? "Loading..." : teacherName,
                           style: TextStyle(
                             fontSize: 28,
                             fontWeight: FontWeight.bold,
@@ -49,9 +78,9 @@ class TeacherDashboard extends StatelessWidget {
                         ),
                       ],
                     ),
-                    SizedBox(width: spacing),
-                    Icon(Icons.school,
-                    size: 70,color: Theme.of(context).colorScheme.primary,),
+                    SizedBox(width: 100),
+                    // Icon(Icons.school,
+                    // size: 70,color: Theme.of(context).colorScheme.primary,),
                   ],
                 ),
               ),

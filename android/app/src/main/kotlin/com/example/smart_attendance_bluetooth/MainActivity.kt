@@ -13,8 +13,9 @@ import io.flutter.plugin.common.MethodChannel
 import java.util.UUID
 
 class MainActivity : FlutterActivity() {
-    private var isBleRunning = false
+
     private val CHANNEL = "teacher_ble"
+    private var isBleRunning = false
 
     private lateinit var channel: MethodChannel
     private lateinit var bluetoothManager: BluetoothManager
@@ -25,10 +26,10 @@ class MainActivity : FlutterActivity() {
     private val mainHandler = Handler(Looper.getMainLooper())
 
     private val SERVICE_UUID =
-        UUID.fromString("00001810-0000-1000-8000-00805f9b34fb")
+        UUID.fromString("df3dca32-611e-4130-ad8c-df64d8d867c9")
 
     private val ATTENDANCE_UUID =
-        UUID.fromString("00002a35-0000-1000-8000-00805f9b34fb")
+        UUID.fromString("52912853-4e88-42e0-a12b-abdcffc7ebd5")
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -41,15 +42,11 @@ class MainActivity : FlutterActivity() {
         channel.setMethodCallHandler { call, result ->
             when (call.method) {
                 "startSession" -> {
-                val args = call.arguments as Map<*, *>
-
-                val sessionCode = args["sessionCode"] as String
-                val className = args["className"] as String
-                val subjectName = args["subjectName"] as String
-
-                startBleServer(sessionCode, className, subjectName)
-                result.success(null)
-}
+                    val args = call.arguments as Map<*, *>
+                    val sessionCode = args["sessionCode"] as String
+                    startBleServer(sessionCode)
+                    result.success(null)
+                }
 
                 "stopSession" -> {
                     stopBleServer()
@@ -60,76 +57,80 @@ class MainActivity : FlutterActivity() {
         }
     }
 
+    override fun onDestroy() {
+        stopBleServer()
+        super.onDestroy()
+    }
+
+
     // ---------------- BLE SERVER ----------------
 
-private fun startBleServer(
-        sessionCode: String?,
-    className: String?,
-    subjectName: String?
-) {
-    if (isBleRunning) {
-        Log.w("BLE", "BLE already running, ignoring start")
-        return
+    private fun startBleServer(sessionCode: String) {
+        if (isBleRunning) {
+            Log.w("BLE", "BLE already running")
+            return
+        }
+
+        bluetoothManager =
+            getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
+        bluetoothAdapter = bluetoothManager.adapter
+
+        if (!bluetoothAdapter.isEnabled) {
+            Log.e("BLE", "Bluetooth disabled")
+            return
+        }
+
+        advertiser = bluetoothAdapter.bluetoothLeAdvertiser
+        gattServer = bluetoothManager.openGattServer(this, gattCallback)
+
+        val service = BluetoothGattService(
+            SERVICE_UUID,
+            BluetoothGattService.SERVICE_TYPE_PRIMARY
+        )
+
+        val attendanceChar = BluetoothGattCharacteristic(
+            ATTENDANCE_UUID,
+            BluetoothGattCharacteristic.PROPERTY_WRITE,
+            BluetoothGattCharacteristic.PERMISSION_WRITE
+        )
+
+        service.addCharacteristic(attendanceChar)
+        gattServer?.clearServices()
+
+        gattServer?.addService(service)
+
+        startAdvertising(sessionCode)
+
+        isBleRunning = true
+        Log.d("BLE", "BLE server started with session: $sessionCode")
     }
 
-    isBleRunning = true
+    private fun stopBleServer() {
+        if (!isBleRunning) return
 
-    bluetoothManager =
-        getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
-    bluetoothAdapter = bluetoothManager.adapter
+        advertiser?.stopAdvertising(advertiseCallback)
+        advertiser = null
 
-    if (!bluetoothAdapter.isEnabled) {
+        gattServer?.close()
+        gattServer = null
+
         isBleRunning = false
-        return
+        Log.d("BLE", "BLE server stopped")
     }
-
-    advertiser = bluetoothAdapter.bluetoothLeAdvertiser
-    gattServer = bluetoothManager.openGattServer(this, gattCallback)
-
-    val service = BluetoothGattService(
-        SERVICE_UUID,
-        BluetoothGattService.SERVICE_TYPE_PRIMARY
-    )
-
-    val attendanceChar = BluetoothGattCharacteristic(
-        ATTENDANCE_UUID,
-        BluetoothGattCharacteristic.PROPERTY_WRITE,
-        BluetoothGattCharacteristic.PERMISSION_WRITE
-    )
-
-    service.addCharacteristic(attendanceChar)
-    gattServer?.addService(service)
-
-    startAdvertising()
-
-    Log.d("BLE", "BLE server started")
-}
-
-
-private fun stopBleServer() {
-    if (!isBleRunning) return
-
-    advertiser?.stopAdvertising(advertiseCallback)
-    gattServer?.close()
-    gattServer = null
-    isBleRunning = false
-
-    Log.d("BLE", "BLE server stopped")
-}
-
 
     // ---------------- ADVERTISING ----------------
 
-    private fun startAdvertising() {
+    private fun startAdvertising(sessionCode: String) {
         val settings = AdvertiseSettings.Builder()
             .setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_LOW_LATENCY)
             .setTxPowerLevel(AdvertiseSettings.ADVERTISE_TX_POWER_HIGH)
             .setConnectable(true)
             .build()
 
+        val payloadBytes = sessionCode.toByteArray(Charsets.UTF_8)
+
         val data = AdvertiseData.Builder()
-            .addServiceUuid(ParcelUuid(SERVICE_UUID))
-            .setIncludeDeviceName(false)
+            .addManufacturerData(0x1234, payloadBytes)
             .build()
 
         advertiser?.startAdvertising(settings, data, advertiseCallback)
@@ -150,39 +151,50 @@ private fun stopBleServer() {
     private val gattCallback = object : BluetoothGattServerCallback() {
 
         override fun onConnectionStateChange(
-            device: BluetoothDevice,
-            status: Int,
-            newState: Int
-        ) {
-            Log.d("BLE", "Device ${device.address} state: $newState")
-        }
+    device: BluetoothDevice,
+    status: Int,
+    newState: Int
+) {
+    Log.d("BLE", "Device ${device.address} state: $newState")
+
+    if (newState == BluetoothProfile.STATE_CONNECTED) {
+        Log.d("BLE", "Accepting connection from ${device.address}")
+        gattServer?.connect(device, false)
+    }
+}
+
 
         override fun onCharacteristicWriteRequest(
-            device: BluetoothDevice,
-            requestId: Int,
-            characteristic: BluetoothGattCharacteristic,
-            preparedWrite: Boolean,
-            responseNeeded: Boolean,
-            offset: Int,
-            value: ByteArray
-        ) {
-            val attendanceData = String(value)
-            Log.d("BLE", "Attendance received: $attendanceData")
+    device: BluetoothDevice,
+    requestId: Int,
+    characteristic: BluetoothGattCharacteristic,
+    preparedWrite: Boolean,
+    responseNeeded: Boolean,
+    offset: Int,
+    value: ByteArray
+) {
+    val attendanceData = String(value)
+    Log.d("BLE", "Attendance received: $attendanceData")
 
-            // 🔥 Send data to Flutter SAFELY
-            mainHandler.post {
-                channel.invokeMethod("attendanceMarked", attendanceData)
-            }
+    mainHandler.post {
+        channel.invokeMethod("attendanceMarked", attendanceData)
+    }
 
-            if (responseNeeded) {
-                gattServer?.sendResponse(
-                    device,
-                    requestId,
-                    BluetoothGatt.GATT_SUCCESS,
-                    0,
-                    null
-                )
-            }
-        }
+    if (responseNeeded) {
+        gattServer?.sendResponse(
+            device,
+            requestId,
+            BluetoothGatt.GATT_SUCCESS,
+            0,
+            null
+        )
+    }
+
+    // ✅ disconnect AFTER response
+    mainHandler.postDelayed({
+        Log.d("BLE", "Disconnecting ${device.address}")
+        gattServer?.cancelConnection(device)
+    }, 500)
+}
     }
 }
