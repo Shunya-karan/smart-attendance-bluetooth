@@ -3,24 +3,25 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:smart_attendance_bluetooth/teacher/widgets/heading&subheading.dart';
 import 'package:smart_attendance_bluetooth/services/firebase_service.dart';
+import 'package:smart_attendance_bluetooth/bluetooth_session.dart';
 
 class LivesSession extends StatefulWidget {
-    final DateTime startTime;
-    final int durationMinutes;
-    final String sessionCode;
-    final String className;
-    final String subjectName;
-    final String sessionType;
-    final bool isHistory;
+  final DateTime startTime;
+  final int durationMinutes;
+  final String sessionCode;
+  final String className;
+  final String subjectName;
+  final String sessionType;
+  final bool isHistory;
 
-    LivesSession({super.key,
-     required this.startTime,
-     required this.durationMinutes,
-     required this.sessionType,
-     required this.className,
-     required this.sessionCode,
-     required this.subjectName,
-      required this.isHistory
+  LivesSession({super.key,
+    required this.startTime,
+    required this.durationMinutes,
+    required this.sessionType,
+    required this.className,
+    required this.sessionCode,
+    required this.subjectName,
+    required this.isHistory
   });
 
 
@@ -29,43 +30,69 @@ class LivesSession extends StatefulWidget {
 }
 
 class _LivesSessionState extends State<LivesSession> {
-    Timer?_timer;
-    late DateTime endTime;
-    Duration remaining=Duration.zero;
-    Map<String, bool> attendanceMap = {};
-    final FirebaseServices=FirebaseService();
-    List studentsList = [];
+  Timer?_timer;
+  late DateTime endTime;
+  Duration remaining=Duration.zero;
+  Map<String, bool> attendanceMap = {};
+  final FirebaseServices=FirebaseService();
+  List studentsList = [];
 
-    @override
-    void initState() {
-      super.initState();
-      endTime = widget.startTime.add(Duration(minutes: widget.durationMinutes));
-      remaining = endTime.difference(DateTime.now());
+  @override
+  void initState() {
+    super.initState();
+    endTime = widget.startTime.add(
+        Duration(minutes: widget.durationMinutes)
+    );
+    remaining = endTime.difference(DateTime.now());
 
-      if (!widget.isHistory) {
-        _startCountdown();
-      }
-
-      if (widget.isHistory) {
-        loadOldAttendance();
-      }
+    if (!widget.isHistory) {
+      _startCountdown();
+      TeacherbleServices();
     }
 
-    Future<void> loadOldAttendance() async {
-      final snap = await FirebaseFirestore.instance
-          .collection("attendance_records")
-          .doc(widget.sessionCode)
-          .collection("students")
-          .get();
+    if (widget.isHistory) {
+      loadOldAttendance();
+    }
+  }
 
-      for (var doc in snap.docs) {
-        attendanceMap[doc.id] = doc["present"];
+  void TeacherbleServices() {
+    TeacherBleService.listenAttendance((data) {
+      final parts = data.trim().split('|');
+      final rollNo = parts.last.trim();
+
+      for (var student in studentsList) {
+        if (student["rollNo"].toString() == rollNo) {
+          final studentId = student.id;
+
+          if (attendanceMap[studentId] == true) return;
+
+          setState(() {
+            attendanceMap[studentId] = true;
+          });
+
+          break;
+        }
       }
+    });
+  }
 
-      setState(() {});
+
+
+  Future<void> loadOldAttendance() async {
+    final snap = await FirebaseFirestore.instance
+        .collection("attendance_records")
+        .doc(widget.sessionCode)
+        .collection("students")
+        .get();
+
+    for (var doc in snap.docs) {
+      attendanceMap[doc.id] = doc["present"];
     }
 
-    void _startCountdown() {
+    setState(() {});
+  }
+
+  void _startCountdown() {
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       final now = DateTime.now();
@@ -84,27 +111,27 @@ class _LivesSessionState extends State<LivesSession> {
     });
   }
 
-    @override
-    void dispose() {
+  @override
+  void dispose() {
     _timer?.cancel();
     super.dispose();
   }
 
-    String formatDuration(Duration d) {
+  String formatDuration(Duration d) {
     final minutes = d.inMinutes.remainder(60).toString().padLeft(2, '0');
     final seconds = d.inSeconds.remainder(60).toString().padLeft(2, '0');
     return "$minutes:$seconds";
   }
 
-    void _endSession(){
-    showDialog(context: context, 
+  void _endSession(){
+    showDialog(context: context,
         builder:(_)=>AlertDialog(
           title: Text("End Session?"),
           content: Text("Do you want to end the session \nSession Code : ${widget.sessionCode}?"),
           actions: [
             TextButton(onPressed:()=> Navigator.pop(context),
                 child: Text("Cancel",
-              style: TextStyle(color: Colors.red),)
+                  style: TextStyle(color: Colors.red),)
             ),
             ElevatedButton(onPressed: (){
               _timer?.cancel();
@@ -135,43 +162,43 @@ class _LivesSessionState extends State<LivesSession> {
                   children: [
                     //Details of session
                     Card(
-                  elevation: 4,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(20.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      elevation: 4,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(20.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              !widget.isHistory?
-                              "Live Session":"Past Session",
-                              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.blueAccent,
-                              ),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  !widget.isHistory?
+                                  "Live Session":"Past Session",
+                                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.blueAccent,
+                                  ),
+                                ),
+                                Chip(
+                                  label: Text("Active"),
+                                  backgroundColor: Colors.green.shade100,
+                                  labelStyle: TextStyle(color: Colors.green.shade800),
+                                ),
+                              ],
                             ),
-                            Chip(
-                              label: Text("Active"),
-                              backgroundColor: Colors.green.shade100,
-                              labelStyle: TextStyle(color: Colors.green.shade800),
-                            ),
+                            const Divider(height: 20, thickness: 1),
+                            _buildInfoRow(Icons.qr_code, "Session Code", "${widget.sessionCode}"),
+                            _buildInfoRow(Icons.class_outlined, "Class", "${widget.className}"),
+                            _buildInfoRow(Icons.menu_book, "Subject", "${widget.subjectName}"),
+                            _buildInfoRow(Icons.laptop, "Session type", "${widget.sessionType}"),
+                            _buildInfoRow(Icons.access_time, "Start Time", "${widget.startTime}"),
+                            _buildInfoRow(Icons.timer, "Duration", !widget.isHistory?"${widget.durationMinutes} Minute":"0"),
                           ],
                         ),
-                        const Divider(height: 20, thickness: 1),
-                        _buildInfoRow(Icons.qr_code, "Session Code", "${widget.sessionCode}"),
-                        _buildInfoRow(Icons.class_outlined, "Class", "${widget.className}"),
-                        _buildInfoRow(Icons.menu_book, "Subject", "${widget.subjectName}"),
-                        _buildInfoRow(Icons.laptop, "Session type", "${widget.sessionType}"),
-                        _buildInfoRow(Icons.access_time, "Start Time", "${widget.startTime}"),
-                        _buildInfoRow(Icons.timer, "Duration", !widget.isHistory?"${widget.durationMinutes} Minute":"0"),
-                      ],
-                    ),
-                  ),
+                      ),
                     ),
 
                     SizedBox(height: 20,),
@@ -180,7 +207,7 @@ class _LivesSessionState extends State<LivesSession> {
                     Card(
                       elevation: 4,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadiusGeometry.circular(20)
+                          borderRadius: BorderRadiusGeometry.circular(20)
                       ),
                       child: Padding(
                         padding: const EdgeInsets.all(20.0),
@@ -192,9 +219,9 @@ class _LivesSessionState extends State<LivesSession> {
                                 Icon(Icons.access_time,color: Theme.of(context).colorScheme.primary,),
                                 SizedBox(width: 10,),
                                 Text("Session will end in:",style:Theme.of(context).textTheme.titleMedium?.
-                                  copyWith(
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.grey[800]
+                                copyWith(
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.grey[800]
                                 ),),
                                 SizedBox(width: 10,),
                                 Text(
@@ -211,26 +238,26 @@ class _LivesSessionState extends State<LivesSession> {
                             SizedBox(
                               width: double.infinity,
                               child: ElevatedButton.icon(onPressed: _endSession,
-                                  style: ElevatedButton.styleFrom(
+                                style: ElevatedButton.styleFrom(
                                     backgroundColor: Colors.red.shade600,
                                     foregroundColor: Colors.white,
                                     padding:EdgeInsets.symmetric(vertical: 14),
                                     shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadiusGeometry.circular(12)
+                                        borderRadius: BorderRadiusGeometry.circular(12)
                                     )
-                                  ),
-                                  icon: Icon(Icons.stop_circle_outlined),
+                                ),
+                                icon: Icon(Icons.stop_circle_outlined),
                                 label: Text("End Session",
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 16
-                                ),),
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 16
+                                  ),),
                               ),
                             )
                           ],
                         ),
                       ),
-                      ),
+                    ),
 
                     SizedBox(height: 30,),
                     //Student names and Roll numbers
@@ -238,9 +265,9 @@ class _LivesSessionState extends State<LivesSession> {
                       stream: FirebaseServices.getStudents(widget.className),
                       builder: (context, snapshot) {
                         if (!snapshot.hasData) return CircularProgressIndicator();
-                    
+
                         final students = snapshot.data!.docs;
-                         studentsList =students;
+                        studentsList =students;
 
                         return ListView.builder(
                           shrinkWrap: true,
@@ -294,7 +321,7 @@ class _LivesSessionState extends State<LivesSession> {
               width: double.infinity,
               height: 100,
               decoration: BoxDecoration(
-                color: Colors.grey[100]
+                  color: Colors.grey[100]
               ),
               child: Padding(
                 padding: const EdgeInsets.all(18.0),
@@ -302,21 +329,21 @@ class _LivesSessionState extends State<LivesSession> {
                     onPressed:()async{
                       await FirebaseServices.saveAttendance(
                         sessionType: widget.sessionType,
-                  subject: widget.subjectName,
-                  className: widget.className,
-                  date: widget.startTime,
-                  sessionId: widget.sessionCode,
-                  attendanceMap: attendanceMap,
-                  students:studentsList,
-                );
+                        subject: widget.subjectName,
+                        className: widget.className,
+                        date: widget.startTime,
+                        sessionId: widget.sessionCode,
+                        attendanceMap: attendanceMap,
+                        students:studentsList,
+                      );
                       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                         content: Text("Attendance Saved Successfully\nSessionCode :${widget.sessionCode}"),
                         duration: Duration(seconds: 4),
                       ));
-                      },
+                    },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue[400],
-                      elevation: 10
+                        backgroundColor: Colors.blue[400],
+                        elevation: 10
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -324,9 +351,9 @@ class _LivesSessionState extends State<LivesSession> {
                         Icon(Icons.save_alt,size: 30,color: Colors.white,),
                         SizedBox(width: 10,),
                         Text("Save",
-                        style:Theme.of(context).textTheme.titleMedium?.copyWith(
-                          color: Colors.white
-                        ),
+                          style:Theme.of(context).textTheme.titleMedium?.copyWith(
+                              color: Colors.white
+                          ),
                         ),
                       ],
                     )),
@@ -364,4 +391,3 @@ Widget _buildInfoRow(IconData icon, String label, String value) {
     ),
   );
 }
-

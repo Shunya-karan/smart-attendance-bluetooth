@@ -30,6 +30,7 @@ class _StudentHomeState extends State<StudentHome> {
   String name = "";
   String seatNumber = "";
   bool net = false;
+  int screenWidth = 0;
 
   @override
   void initState() {
@@ -216,7 +217,7 @@ void listenNet() {
                 const SizedBox(height: 10),
                 Container(
                   height: 100,
-                  width: 400,
+                  width: double.infinity,
                   decoration: BoxDecoration(
                     border: Border.all(
                       color: isBtOn ? Colors.blueAccent : Colors.redAccent,
@@ -262,7 +263,7 @@ void listenNet() {
 
                 Container(
                   height: 100,
-                  width: 400,
+                  width: double.infinity,
                   decoration: BoxDecoration(
                     border: Border.all(color: Colors.blueAccent, width: 1.3),
                     borderRadius: BorderRadius.circular(12),
@@ -298,7 +299,7 @@ void listenNet() {
                 ),
                 SizedBox(height: 20),
                 Container(
-                  width: 400,
+                  width: double.infinity,
                   decoration: BoxDecoration(
                     border: Border.all(color: Colors.blueAccent, width: 0.2),
                     borderRadius: BorderRadius.circular(12),
@@ -343,7 +344,7 @@ void listenNet() {
                 SizedBox(height: 20),
                 Container(
                   height: 370,
-                  width: 400,
+                  width: double.infinity,
                   decoration: BoxDecoration(
                     border: Border.all(color: Colors.blueAccent, width: 0.5),
                     borderRadius: BorderRadius.circular(12),

@@ -62,4 +62,3 @@ flutter {
     source = "../.."
 }
 
-

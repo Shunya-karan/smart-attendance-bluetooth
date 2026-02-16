@@ -23,24 +23,12 @@ class _BluetoothStatusCardState extends State<BluetoothStatusCard> {
   @override
   void initState() {
     super.initState();
-    _askAllPermissions();
     _loadStatus();
   }
-
-  Future<void> _askAllPermissions() async {
-    await [
-      Permission.bluetoothScan,
-      Permission.bluetoothConnect,
-      Permission.bluetoothAdvertise,
-      Permission.locationWhenInUse,
-    ].request();
-  }
-
   void _notifyParent() {
     final scanReady = bluetoothOn && locationGranted && locationServices;
     widget.onStatusChanged?.call(scanReady);
   }
-
 
   Future<void> _loadStatus() async {
     final btState = await FlutterBluePlus.adapterState.first;
@@ -101,18 +89,8 @@ class _BluetoothStatusCardState extends State<BluetoothStatusCard> {
     });
   }
   Future<void> _requestLocation() async {
-    var status = await Permission.locationWhenInUse.status;
-
-    if (status.isPermanentlyDenied) {
-      openAppSettings();
-      return;
-    }
-
     final result = await Permission.locationWhenInUse.request();
 
-    setState(() {
-      locationGranted = result.isGranted;
-    });
   }
 
 

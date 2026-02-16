@@ -84,8 +84,6 @@ class _StartAttendanceState extends State<StartAttendance> {
 
   }
 
-
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
