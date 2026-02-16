@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:app_settings/app_settings.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
 import 'package:smart_attendance_bluetooth/student/other_required.dart';
 import 'package:smart_attendance_bluetooth/student/ble_scan.dart';
@@ -21,6 +22,7 @@ class _StudentScanState extends State<StudentScan> with WidgetsBindingObserver {
   bool isBtOn = false;
   bool started = false;
   bool scanning = false;
+  String rollNo = "";
 
   bool isLocationOn = false;
 bool isLocationPermissionGranted = false;
@@ -38,6 +40,7 @@ bool isLocationPermissionGranted = false;
 
     initBluetoothUI();
     checkLocationStatus();
+    getRoll();
 
   }
 
@@ -68,6 +71,16 @@ Future<void> startLiveScan() async {
     });
   });
 }
+
+Future<void> getRoll() async {
+  final pref = await SharedPreferences.getInstance();
+  final roll = pref.getString("seatNumber");
+  if (roll != null) {
+    setState(() {
+      rollNo = roll;
+    });
+  }
+  }
 
 
   void showSnack(String msg) {
@@ -188,7 +201,7 @@ print("Location permission: $status");
             onPressed: () async {
     final success = await bleManager.markAttendance(
       session: session,
-      studentId: "24", // later: real student ID
+      studentId: rollNo, // later: real student ID
     );
 
     showSnack(

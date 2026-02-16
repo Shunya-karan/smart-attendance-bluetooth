@@ -31,7 +31,7 @@ class _LivesSessionState extends State<LivesSession> {
     Timer?_timer;
     late DateTime endTime;
     Duration remaining=Duration.zero;
-    final List<String> presentStudents = [];
+    final List<String> presentStudents = ['68'];
     
     
 
@@ -48,13 +48,19 @@ void initState() {
   _startCountdown();
 
   /// 🔥 LISTEN BLE ATTENDANCE
-  TeacherBleService.listenAttendance((roll) {
-    if (!presentStudents.contains(roll)) {
-      setState(() {
-        presentStudents.add(roll);
-      });
-    }
-  });
+  TeacherBleService.listenAttendance((data) {
+  final parts = data.trim().split('|');
+
+  final rollNo = parts.last.trim(); // "24"
+
+  if (!presentStudents.contains(rollNo)) {
+    setState(() {
+      presentStudents.add(rollNo);
+    });
+  }
+});
+
+
 }
 
 Future<List<Map<String, dynamic>>> getStudentsOfClass(String classId) async {
@@ -217,7 +223,10 @@ void dispose() {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: students.map((doc) {
                 final s = doc.data()! as Map<String, dynamic>;
-                final isPresent = presentStudents.contains(s['rollNo'].toString());
+                final isPresent = presentStudents.contains(
+  s['rollNo'].toString().trim(),
+);
+
 
                 return ListTile(
                   title: Text(

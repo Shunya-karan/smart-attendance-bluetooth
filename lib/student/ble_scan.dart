@@ -27,10 +27,13 @@ class BleManager {
 Stream<List<BleSession>> startSessionScan() async* {
   _sessions.clear();
 
-  await FlutterBluePlus.startScan(
-    timeout: const Duration(seconds: 15),
-    androidUsesFineLocation: true,
-  );
+  await FlutterBluePlus.stopScan();
+await Future.delayed(const Duration(milliseconds: 600));
+await FlutterBluePlus.startScan(
+  timeout: const Duration(seconds: 15),
+  androidUsesFineLocation: true,
+);
+
 
   print("Scanning...");
 
@@ -79,8 +82,10 @@ Future<bool> markAttendance({
 
   try {
     await stopScan();
+    await Future.delayed(const Duration(milliseconds: 700));
     await device.connect(timeout: const Duration(seconds: 8));
-
+    await device.requestMtu(512);
+    await Future.delayed(const Duration(milliseconds: 200));
     final services = await device.discoverServices();
     for (final s in services) {
       if (s.uuid == BLE_SERVICE_UUID) {
@@ -99,6 +104,7 @@ Future<bool> markAttendance({
     return false;
   } finally {
     if (device.isConnected) {
+      await Future.delayed(Duration(milliseconds: 300));
       await device.disconnect();
     }
   }

@@ -152,38 +152,50 @@ class MainActivity : FlutterActivity() {
     private val gattCallback = object : BluetoothGattServerCallback() {
 
         override fun onConnectionStateChange(
-            device: BluetoothDevice,
-            status: Int,
-            newState: Int
-        ) {
-            Log.d("BLE", "Device ${device.address} state: $newState")
-        }
+    device: BluetoothDevice,
+    status: Int,
+    newState: Int
+) {
+    Log.d("BLE", "Device ${device.address} state: $newState")
+
+    if (newState == BluetoothProfile.STATE_CONNECTED) {
+        Log.d("BLE", "Accepting connection from ${device.address}")
+        gattServer?.connect(device, false)
+    }
+}
+
 
         override fun onCharacteristicWriteRequest(
-            device: BluetoothDevice,
-            requestId: Int,
-            characteristic: BluetoothGattCharacteristic,
-            preparedWrite: Boolean,
-            responseNeeded: Boolean,
-            offset: Int,
-            value: ByteArray
-        ) {
-            val attendanceData = String(value)
-            Log.d("BLE", "Attendance received: $attendanceData")
+    device: BluetoothDevice,
+    requestId: Int,
+    characteristic: BluetoothGattCharacteristic,
+    preparedWrite: Boolean,
+    responseNeeded: Boolean,
+    offset: Int,
+    value: ByteArray
+) {
+    val attendanceData = String(value)
+    Log.d("BLE", "Attendance received: $attendanceData")
 
-            mainHandler.post {
-                channel.invokeMethod("attendanceMarked", attendanceData)
-            }
+    mainHandler.post {
+        channel.invokeMethod("attendanceMarked", attendanceData)
+    }
 
-            if (responseNeeded) {
-                gattServer?.sendResponse(
-                    device,
-                    requestId,
-                    BluetoothGatt.GATT_SUCCESS,
-                    0,
-                    byteArrayOf()
-                )
-            }
-        }
+    if (responseNeeded) {
+        gattServer?.sendResponse(
+            device,
+            requestId,
+            BluetoothGatt.GATT_SUCCESS,
+            0,
+            null
+        )
+    }
+
+    // ✅ disconnect AFTER response
+    mainHandler.postDelayed({
+        Log.d("BLE", "Disconnecting ${device.address}")
+        gattServer?.cancelConnection(device)
+    }, 500)
+}
     }
 }
