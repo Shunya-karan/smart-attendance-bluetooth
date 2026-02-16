@@ -8,9 +8,10 @@ import 'package:smart_attendance_bluetooth/teacher/screens/lives_session.dart';
 import 'package:smart_attendance_bluetooth/teacher/widgets/blutooth_status.dart';
 import 'package:smart_attendance_bluetooth/teacher/widgets/dateAndtime.dart';
 import 'package:smart_attendance_bluetooth/teacher/widgets/heading&subheading.dart';
+import 'package:smart_attendance_bluetooth/bluetooth_session.dart';
 
 class StartAttendance extends StatefulWidget {
-    const StartAttendance({super.key});
+  const StartAttendance({super.key});
 
   @override
   State<StartAttendance> createState() => _StartAttendanceState();
@@ -36,24 +37,35 @@ class _StartAttendanceState extends State<StartAttendance> {
     final number = 1000 + rand.nextInt(9000);
 
     String c = selectedClassName!.replaceAll(" ", "").toUpperCase();
-    final s = await FirebaseServices.subjectCode(selectedClassId,selectedSubjectId);
+    final s = await FirebaseServices.getSubjectCode(selectedClassId,selectedSubjectId);
 
 
     sessionCode = "$c-$s-$number";
     return "${sessionCode}";
   }
 
-  Future <void>_startSession()async{
-    if(selectedClassId==null||
-        selectedSubjectId==null||
-        selectedDuration==null){
+
+  Future<void> _startSession() async {
+    if (selectedClassId == null ||
+        selectedSubjectId == null ||
+        selectedDuration == null ||
+        sessionType == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Please fill session details"))
+        const SnackBar(content: Text("Please fill session details")),
       );
       return;
     }
 
-    final sessionId = await FirebaseServices.createAttendanceSession(
+    final code = await generateSessionCode();
+
+    print(code);
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content:Text("Session started $code"
+        )
+    )
+    );
+
+    await FirebaseServices.createAttendanceSession(
       classId: selectedClassId!,
       className: selectedClassName!,
       subjectId: selectedSubjectId!,
@@ -61,27 +73,31 @@ class _StartAttendanceState extends State<StartAttendance> {
       duration: selectedDuration!,
       sessionType: sessionType!,
       teacherId: FirebaseAuth.instance.currentUser!.uid,
-      sessionCode: await generateSessionCode(),
+      sessionCode: code,
     );
 
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content:Text("Session started ${await generateSessionCode()}"
-        )
-    )
+    await TeacherBleService.stopBleSession();
+
+
+    /// 🔥 START BLE HERE
+    await TeacherBleService.startBleSession(
+      sessionCode: code,
     );
-    Navigator.pushReplacement(context, MaterialPageRoute(builder:(context)=>
-      LivesSession(
-        startTime: DateTime.now(),
-        durationMinutes: selectedDuration!,
-        subjectName: selectedSubjectName!,
-        className: selectedClassName!,
-        sessionCode:sessionCode!,
-      sessionType: sessionType!,
-        isHistory: false,
-      )
-    ));
 
-
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => LivesSession(
+          startTime: DateTime.now(),
+          durationMinutes: selectedDuration!,
+          subjectName: selectedSubjectName!,
+          className: selectedClassName!,
+          sessionCode: code,
+          sessionType: sessionType!,
+          isHistory: false,
+        ),
+      ),
+    );
   }
 
   @override
@@ -98,13 +114,13 @@ class _StartAttendanceState extends State<StartAttendance> {
             ),
             // Date&Time
             Padding(
-              padding: const EdgeInsets.only(right: 18.0,top: 10),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  DateandTime(),
-                ],
-              )
+                padding: const EdgeInsets.only(right: 18.0,top: 10),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    DateandTime(),
+                  ],
+                )
             ),
             //Create session Container
             SizedBox(height: 10,),
@@ -126,11 +142,11 @@ class _StartAttendanceState extends State<StartAttendance> {
                       Card(
                         elevation: 0,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          side: BorderSide(color: Colors.grey)
+                            borderRadius: BorderRadius.circular(16),
+                            side: BorderSide(color: Colors.grey)
                         ),
                         child: Padding(
-                            padding: EdgeInsetsGeometry.all(20),
+                          padding: EdgeInsetsGeometry.all(20),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -169,7 +185,7 @@ class _StartAttendanceState extends State<StartAttendance> {
                                         return DropdownMenuItem(
                                             value: doc.id,
                                             child: Text(doc["name"],
-                                            style: TextStyle(fontWeight: FontWeight.normal),)
+                                              style: TextStyle(fontWeight: FontWeight.normal),)
                                         );
                                       }).toList(),
                                       onChanged: (val) {
@@ -185,7 +201,7 @@ class _StartAttendanceState extends State<StartAttendance> {
 
                                       decoration: InputDecoration(
                                         label: Text("Class",style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                          fontWeight: FontWeight.normal
+                                            fontWeight: FontWeight.normal
                                         )
                                         ),
                                         hint: Text("Select Class",style: TextStyle(
@@ -223,10 +239,10 @@ class _StartAttendanceState extends State<StartAttendance> {
                                               style:Theme.of(context).textTheme.titleMedium?.copyWith(
                                                   fontWeight: FontWeight.normal,color: Colors.red[900]
                                               )),
-                                            border: OutlineInputBorder(
-                                              borderRadius: BorderRadius.circular(12),
-                                              borderSide: const BorderSide(color: Colors.blueAccent, width: 1.2),
-                                            ),
+                                          border: OutlineInputBorder(
+                                            borderRadius: BorderRadius.circular(12),
+                                            borderSide: const BorderSide(color: Colors.blueAccent, width: 1.2),
+                                          ),
                                           filled: true,
                                           fillColor: Colors.grey[50],
                                           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -239,7 +255,7 @@ class _StartAttendanceState extends State<StartAttendance> {
                                         return DropdownMenuItem(
                                             value: doc.id,
                                             child: Text((doc["name"]).length>20?"${(doc["name"]).substring(0,20)}...":doc["name"],
-                                            style: TextStyle(fontWeight: FontWeight.normal),)
+                                              style: TextStyle(fontWeight: FontWeight.normal),)
                                         );
                                       }).toList(),
                                       onChanged:(val) {
@@ -266,7 +282,7 @@ class _StartAttendanceState extends State<StartAttendance> {
                                   }),
                               SizedBox(height: 20,),
                               DropdownButtonFormField<int>(
-                              initialValue: selectedDuration,
+                                initialValue: selectedDuration,
                                 items:sessionDuration.map((e){
                                   return DropdownMenuItem(
                                       child: Text("${e} Minute",
@@ -274,14 +290,14 @@ class _StartAttendanceState extends State<StartAttendance> {
                                       value: e);
                                 }).toList(),
                                 onChanged: (val){
-                                setState(() {
-                                  selectedDuration=val;
-                                });
+                                  setState(() {
+                                    selectedDuration=val;
+                                  });
                                 },
                                 decoration:InputDecoration(
                                   label: Text("Duration",style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.normal)
-                              ),
+                                      fontWeight: FontWeight.normal)
+                                  ),
                                   hint: Text("Select Session Duration",
                                       style:Theme.of(context).textTheme.titleSmall?.copyWith(
                                           fontWeight: FontWeight.normal)
@@ -298,13 +314,13 @@ class _StartAttendanceState extends State<StartAttendance> {
                               ),
                               SizedBox(height: 20,),
                               Text("Session Type :",
-                              style: Theme.of(context).textTheme.titleSmall,),
+                                style: Theme.of(context).textTheme.titleSmall,),
                               RadioMenuButton(value:"Lecture" ,
                                   groupValue:sessionType ,
                                   onChanged:(val){
-                                setState(() {
-                                  sessionType=val;
-                                });
+                                    setState(() {
+                                      sessionType=val;
+                                    });
                                   },
                                   child:Text("Lecture") ),
                               RadioMenuButton(value:"Practical" ,
@@ -338,7 +354,7 @@ class _StartAttendanceState extends State<StartAttendance> {
               height: 100,
               width: double.infinity,
               decoration: BoxDecoration(
-                color: Colors.grey[200]
+                  color: Colors.grey[200]
               ),
               child: Padding(
                 padding: const EdgeInsets.all(18.0),
@@ -353,20 +369,20 @@ class _StartAttendanceState extends State<StartAttendance> {
                         Icon(Icons.slow_motion_video,color: Colors.white,size: 25,),
                         SizedBox(width: 10,),
                         Text("Start Attendance Session"
-                        ,style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            color: Colors.white
+                          ,style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              color: Colors.white
                           ),
                         ),
                       ],
                     )),
               ),
             )
+
           ],
         ),
       ),
     );
   }
 }
-
 
 
