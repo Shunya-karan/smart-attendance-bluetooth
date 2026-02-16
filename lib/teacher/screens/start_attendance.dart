@@ -36,8 +36,8 @@ class _StartAttendanceState extends State<StartAttendance> {
     final number = 1000 + rand.nextInt(9000);
 
     String c = selectedClassName!.replaceAll(" ", "").toUpperCase();
-    final snapshot = await FirebaseService().subjectCode(selectedClassId);
-    final s = snapshot.docs.first["code"];
+    final s = await FirebaseServices.subjectCode(selectedClassId,selectedSubjectId);
+
 
     sessionCode = "$c-$s-$number";
     return "${sessionCode}";

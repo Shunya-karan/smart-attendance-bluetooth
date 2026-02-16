@@ -262,7 +262,7 @@ class QuickAction extends StatelessWidget {
                   ),
                   SizedBox(height: 3,),
                   Text(
-                    "Sessions",
+                    "Live\nsSessions",
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.normal,
                         fontSize: 15

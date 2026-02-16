@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_core/firebase_core.dart';
 
 class FirebaseService {
   Future <UserCredential>loginTeacher(String email, String password) async {
@@ -19,7 +20,6 @@ class FirebaseService {
         .where("isActive")
         .orderBy("name")
         .snapshots();
-
   }
 
   Stream<QuerySnapshot>allClasses(){
@@ -28,7 +28,6 @@ class FirebaseService {
         .where("isActive", isEqualTo: true)
         .snapshots();
   }
-
 
   Stream<QuerySnapshot>Subjects(selectedClassId){
     return FirebaseFirestore.instance
@@ -74,13 +73,18 @@ class FirebaseService {
   }
 
 
-  Future<QuerySnapshot> subjectCode(String? classID) {
-    return FirebaseFirestore.instance
+  Future<String?> subjectCode(String? classID, String? subjectId) async {
+    DocumentSnapshot doc = await FirebaseFirestore.instance
         .collection("classes")
         .doc(classID)
         .collection("subjects")
-        .where("isActive", isEqualTo: true)
+        .doc(subjectId)
         .get();
+
+    if (doc.exists) {
+      return doc.get("code");
+    }
+    return null;
   }
 
   Future<void>endSession(String?sessionId){
