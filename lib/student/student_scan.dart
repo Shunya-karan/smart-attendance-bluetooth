@@ -33,6 +33,8 @@ class _StudentScanState extends State<StudentScan> with WidgetsBindingObserver {
 
   String rollNo = "";
 
+  bool userInitiatedCheck = false;
+
   TextEditingController searchController = TextEditingController();
   String searchQuery = "";
 
@@ -66,6 +68,15 @@ class _StudentScanState extends State<StudentScan> with WidgetsBindingObserver {
     super.dispose();
   }
 
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
+      sessionSub?.cancel();
+      bleManager.stopScan();
+    }
+  }
+
   void startGlobalTicker() {
     _ticker?.cancel();
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
@@ -76,20 +87,46 @@ class _StudentScanState extends State<StudentScan> with WidgetsBindingObserver {
   }
 
   Future<void> startLiveScan() async {
-    if (sessionSub != null) return;
-    if (!mounted) return;
-    if (!isBtOn || !isLocationOn || !isLocationPermissionGranted) return;
+  // 🔑 allow re-scan
+  await sessionSub?.cancel();
+  sessionSub = null;
 
-    await sessionSub?.cancel();
-    nearbySessions.clear();
+  if (scanning) return;
 
-    sessionSub = bleManager.startSessionScan().listen((sessions) {
+  if (!isBtOn || !isLocationOn || !isLocationPermissionGranted) {
+    setState(() => scanning = false);
+    return;
+  }
+
+  setState(() => scanning = true);
+
+  nearbySessions.clear();
+
+  sessionSub = bleManager.startSessionScan().listen(
+    (sessions) {
       if (!mounted) return;
       setState(() {
         nearbySessions = sessions;
       });
-    });
-  }
+    },
+    onDone: () {
+      // 🔑 VERY IMPORTANT
+      if (!mounted) return;
+      setState(() {
+        scanning = false;
+        sessionSub = null;
+      });
+    },
+    onError: (e) {
+      if (!mounted) return;
+      setState(() {
+        scanning = false;
+        sessionSub = null;
+      });
+    },
+  );
+}
+
 
   Future<void> getRoll() async {
     final pref = await SharedPreferences.getInstance();
@@ -111,50 +148,37 @@ class _StudentScanState extends State<StudentScan> with WidgetsBindingObserver {
     final serviceOn = await Permission.location.serviceStatus.isEnabled;
     final permission = await Permission.locationWhenInUse.status;
 
-    if (!mounted) return;
-
     setState(() {
       isLocationOn = serviceOn;
       isLocationPermissionGranted = permission.isGranted;
     });
 
-    if (isBtOn && isLocationOn && isLocationPermissionGranted) {
-      startLiveScan();
+    if (userInitiatedCheck) {
+      if (!isLocationPermissionGranted) {
+        showSnack("Location permission required");
+      } else if (!isLocationOn) {
+        showSnack("Please turn ON Location");
+      }
     }
   }
 
-  void initBluetoothUI() async {
-    await AppBluetoothService.requestPermissions();
-
-    final status = await Permission.location.status;
-    debugPrint("Location permission: $status");
-
+  void initBluetoothUI() {
     AppBluetoothService.adapterState().listen((state) {
       if (!mounted) return;
 
       final btOn = state == BluetoothAdapterState.on;
-      setState(() => isBtOn = btOn);
+
+      setState(() {
+        isBtOn = btOn;
+      });
 
       if (!btOn) {
         sessionSub?.cancel();
         bleManager.stopScan();
-      }
 
-      if (!btOn && !dialogShown) {
-        dialogShown = true;
-        _showBtDialog();
-      }
-
-      if (btOn && dialogShown) {
-        Navigator.pop(context);
-        dialogShown = false;
-      }
-
-      if (btOn &&
-          sessionSub == null &&
-          isLocationOn &&
-          isLocationPermissionGranted) {
-        startLiveScan();
+        if (userInitiatedCheck) {
+          showSnack("Please turn ON Bluetooth");
+        }
       }
     });
   }
@@ -268,20 +292,45 @@ class _StudentScanState extends State<StudentScan> with WidgetsBindingObserver {
           Padding(
             padding: const EdgeInsets.all(8),
             child: ElevatedButton(
-              onPressed: () async {
-                final success = await bleManager.markAttendance(
-                  session: session,
-                  studentId: rollNo, // later: real student ID
-                );
+              onPressed: expired || attendanceSent
+                  ? null
+                  : () async {
+                      if (rollNo.isEmpty) {
+                        showSnack("Roll number not found. Please login again.");
+                        return;
+                      }
 
-                showSnack(
-                  success ? "Attendance marked ✅" : "Attendance failed ❌",
-                );
-              },
+                      setState(() {
+                        attendanceSent = true;
+                      });
+
+                      final success = await bleManager.markAttendance(
+                        session: session,
+                        studentId: rollNo,
+                      );
+
+                      showSnack(
+                        success ? "Attendance marked ✅" : "Attendance failed ❌",
+                      );
+
+                      if (success) {
+                        await sessionSub?.cancel();
+                        sessionSub = null;
+                        bleManager.stopScan();
+                      }
+
+                      if (!success) {
+                        setState(() {
+                          attendanceSent = false;
+                        });
+                      }
+                    },
+
               style: ElevatedButton.styleFrom(
-                backgroundColor: expired
+                backgroundColor: expired || attendanceSent
                     ? Colors.grey
                     : Theme.of(context).colorScheme.secondary,
+
                 padding: const EdgeInsets.symmetric(
                   vertical: 8,
                   horizontal: 20,
@@ -316,261 +365,341 @@ class _StudentScanState extends State<StudentScan> with WidgetsBindingObserver {
             );
           }).toList();
     return SafeArea(
-      child: Align(
-        alignment: Alignment.topCenter,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.start,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  vertical: 8.0,
-                  horizontal: 16,
+      child: Stack(
+        children: [
+          SingleChildScrollView(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 8.0,
+                    horizontal: 16,
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        "Scan Sessions",
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                SizedBox(height: 10),
+                //
+                Row(
                   children: [
-                    Text(
-                      "Scan Sessions",
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
+                    Expanded(
+                      child: Container(
+                        height: 70,
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                            color: isBtOn
+                                ? Colors.blueAccent
+                                : Colors.redAccent,
+                            width: 1.3,
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                          color: const Color.fromARGB(255, 236, 250, 255),
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(
+                                  isBtOn
+                                      ? Icons.bluetooth_rounded
+                                      : Icons.bluetooth_disabled_rounded,
+                                  size: 28,
+                                  color: isBtOn ? Colors.blue : Colors.red,
+                                ),
+                                const SizedBox(width: 5),
+                                const Text(
+                                  "Bluetooth",
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            Transform.scale(
+                              scale: 0.8,
+                              child: Switch(
+                                value: isBtOn,
+                                onChanged: (val) {
+                                  AppSettings.openAppSettings(
+                                    type: AppSettingsType.bluetooth,
+                                  );
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 5), // spacing between cards
+                    Expanded(
+                      child: Container(
+                        height: 70,
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                            color: isLocationOn && isLocationPermissionGranted
+                                ? Colors.green
+                                : Colors.redAccent,
+                            width: 1.3,
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                          color: const Color.fromARGB(255, 240, 255, 240),
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Icon(
+                                      isLocationOn &&
+                                              isLocationPermissionGranted
+                                          ? Icons.location_on_outlined
+                                          : Icons.location_off_outlined,
+                                      size: 25,
+                                      color:
+                                          isLocationOn &&
+                                              isLocationPermissionGranted
+                                          ? Colors.green
+                                          : Colors.red,
+                                    ),
+                                    const SizedBox(width: 5),
+                                    const Text(
+                                      "Location",
+                                      style: TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 3),
+                                Text(
+                                  isLocationPermissionGranted
+                                      ? "Permission: Granted"
+                                      : "Permission: Required",
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: isLocationPermissionGranted
+                                        ? Colors.green
+                                        : Colors.red,
+                                  ),
+                                ),
+                                Text(
+                                  isLocationOn ? "Service: ON" : "Service: OFF",
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: isLocationOn
+                                        ? Colors.green
+                                        : Colors.red,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            Transform.scale(
+                              scale: 0.8,
+                              child: Switch(
+                                value:
+                                    isLocationOn && isLocationPermissionGranted,
+                                onChanged: (_) async {
+                                  if (!isLocationPermissionGranted) {
+                                    await Permission.locationWhenInUse
+                                        .request();
+                                  } else if (!isLocationOn) {
+                                    AppSettings.openAppSettings(
+                                      type: AppSettingsType.location,
+                                    );
+                                  }
+                                  await checkLocationStatus();
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ],
                 ),
-              ),
-              SizedBox(height: 10),
-              //
-              Row(
-                children: [
-                  Expanded(
-                    child: Container(
-                      height: 70,
-                      decoration: BoxDecoration(
-                        border: Border.all(
-                          color: isBtOn ? Colors.blueAccent : Colors.redAccent,
-                          width: 1.3,
-                        ),
-                        borderRadius: BorderRadius.circular(12),
-                        color: const Color.fromARGB(255, 236, 250, 255),
-                      ),
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(
-                                isBtOn
-                                    ? Icons.bluetooth_rounded
-                                    : Icons.bluetooth_disabled_rounded,
-                                size: 28,
-                                color: isBtOn ? Colors.blue : Colors.red,
-                              ),
-                              const SizedBox(width: 5),
-                              const Text(
-                                "Bluetooth",
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                          Transform.scale(
-                            scale: 0.8,
-                            child: Switch(
-                              value: isBtOn,
-                              onChanged: (val) {
-                                AppSettings.openAppSettings(
-                                  type: AppSettingsType.bluetooth,
-                                );
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                // locationCard(),
+                SizedBox(height: 20),
+                //Text(StudentHome.net? "Online" : "Offline",),
+                Container(
+                  height: 50,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[200],
+                    borderRadius: BorderRadius.circular(30),
+                    border: Border.all(color: Colors.grey.shade400),
                   ),
-                  const SizedBox(width: 5), // spacing between cards
-                  Expanded(
-                    child: Container(
-                      height: 70,
-                      decoration: BoxDecoration(
-                        border: Border.all(
-                          color: isLocationOn && isLocationPermissionGranted
-                              ? Colors.green
-                              : Colors.redAccent,
-                          width: 1.3,
-                        ),
-                        borderRadius: BorderRadius.circular(12),
-                        color: const Color.fromARGB(255, 240, 255, 240),
+                  child: TextField(
+                    controller: searchController,
+                    textAlignVertical: TextAlignVertical.center,
+                    decoration: InputDecoration(
+                      hintText: "Enter Session ID",
+                      prefixIcon: const Icon(
+                        Icons.search_rounded,
+                        color: Colors.grey,
                       ),
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Icon(
-                                    isLocationOn && isLocationPermissionGranted
-                                        ? Icons.location_on_outlined
-                                        : Icons.location_off_outlined,
-                                    size: 25,
-                                    color:
-                                        isLocationOn &&
-                                            isLocationPermissionGranted
-                                        ? Colors.green
-                                        : Colors.red,
-                                  ),
-                                  const SizedBox(width: 5),
-                                  const Text(
-                                    "Location",
-                                    style: TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 3),
-                              Text(
-                                isLocationPermissionGranted
-                                    ? "Permission: Granted"
-                                    : "Permission: Required",
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  color: isLocationPermissionGranted
-                                      ? Colors.green
-                                      : Colors.red,
-                                ),
-                              ),
-                              Text(
-                                isLocationOn ? "Service: ON" : "Service: OFF",
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  color: isLocationOn
-                                      ? Colors.green
-                                      : Colors.red,
-                                ),
-                              ),
-                            ],
-                          ),
-                          Transform.scale(
-                            scale: 0.8,
-                            child: Switch(
-                              value:
-                                  isLocationOn && isLocationPermissionGranted,
-                              onChanged: (_) async {
-                                if (!isLocationPermissionGranted) {
-                                  await Permission.locationWhenInUse.request();
-                                } else if (!isLocationOn) {
-                                  AppSettings.openAppSettings(
-                                    type: AppSettingsType.location,
-                                  );
-                                }
-                                await checkLocationStatus();
+                      suffixIcon: searchQuery.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear, color: Colors.grey),
+                              onPressed: () {
+                                searchController.clear();
                               },
-                            ),
-                          ),
-                        ],
-                      ),
+                            )
+                          : null,
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 0),
                     ),
-                  ),
-                ],
-              ),
-              // locationCard(),
-              SizedBox(height: 20),
-              //Text(StudentHome.net? "Online" : "Offline",),
-              Container(
-                height: 50,
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                decoration: BoxDecoration(
-                  color: Colors.grey[200],
-                  borderRadius: BorderRadius.circular(30),
-                  border: Border.all(color: Colors.grey.shade400),
-                ),
-                child: TextField(
-                  controller: searchController,
-                  textAlignVertical: TextAlignVertical.center,
-                  decoration: InputDecoration(
-                    hintText: "Enter Session ID",
-                    prefixIcon: const Icon(
-                      Icons.search_rounded,
-                      color: Colors.grey,
-                    ),
-                    suffixIcon: searchQuery.isNotEmpty
-                        ? IconButton(
-                            icon: const Icon(Icons.clear, color: Colors.grey),
-                            onPressed: () {
-                              searchController.clear();
-                            },
-                          )
-                        : null,
-                    border: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(vertical: 0),
                   ),
                 ),
-              ),
 
-              SizedBox(height: 30),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    "Nearby Sessions",
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black,
+                SizedBox(height: 30),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      "Nearby Sessions",
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                      ),
                     ),
-                  ),
-                  IconButton(
-                    onPressed: () {
-                      if (!isLocationOn || !isLocationPermissionGranted) {
-                        showSnack("Enable Location to scan sessions");
+                    IconButton(
+                      onPressed: scanning
+                          ? null
+                          : () async {
+                        userInitiatedCheck = true;
+
+                        await checkLocationStatus();
+
+                        if (!isBtOn) return;
+                        if (!isLocationOn || !isLocationPermissionGranted) {
+                        userInitiatedCheck = false;
+
                         return;
-                      }
+                        };
+
+                        startLiveScan();
+                      },
+
+                      icon: Icon(
+                        Icons.refresh_rounded,
+                        color: Colors.grey,
+                        size: 30,
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 20),
+
+                ...(filteredSessions.isEmpty
+                    ? [
+                        const Text(
+                          'No nearby sessions found',
+                          style: TextStyle(fontSize: 16, color: Colors.red),
+                        ),
+                      ]
+                    : filteredSessions
+                          .map(
+                            (session) => Padding(
+                              padding: const EdgeInsets.only(bottom: 20),
+                              child: buildSession(session),
+                            ),
+                          )
+                          .toList()),
+
+                SizedBox(height: 600),
+              ],
+            ),
+          ),
+          Positioned(
+            bottom:
+      16,
+  left: 0,
+  right: 0,
+            child: Center(
+              child: SizedBox(
+                width: 250,
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF2193B0), Color(0xFF6DD5ED)],
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                    ),
+
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Colors.black26,
+                        blurRadius: 8,
+                        offset: Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: ElevatedButton(
+                    onPressed: scanning
+                        ? null
+                        : () async {
+                      userInitiatedCheck = true;
+
+                      await checkLocationStatus();
+
+                      if (!isBtOn) return;
+                      if (!isLocationOn || !isLocationPermissionGranted) {
+                        userInitiatedCheck = false;
+
+                        return;
+                        };
+
                       startLiveScan();
                     },
-                    icon: Icon(
-                      Icons.refresh_rounded,
-                      color: Colors.grey,
-                      size: 30,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      shadowColor: Colors.transparent,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    child: Text(
+                      scanning ? "Scanning..." : "Scan Session",
+
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        letterSpacing: 0.5,
+                      ),
                     ),
                   ),
-                ],
+                ),
               ),
-              SizedBox(height: 20),
-
-              ...(filteredSessions.isEmpty
-                  ? [
-                      const Text(
-                        'No nearby sessions found',
-                        style: TextStyle(fontSize: 16, color: Colors.red),
-                      ),
-                    ]
-                  : filteredSessions
-                        .map(
-                          (session) => Padding(
-                            padding: const EdgeInsets.only(bottom: 20),
-                            child: buildSession(session),
-                          ),
-                        )
-                        .toList()),
-
-              SizedBox(height: 50),
-            ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
