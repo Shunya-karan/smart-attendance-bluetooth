@@ -13,7 +13,8 @@ class StudentHome extends StatefulWidget {
   final VoidCallback onProfile;
   final VoidCallback onAttendance;
 
-  const StudentHome({super.key,
+  const StudentHome({
+    super.key,
     required this.onScan,
     required this.onProfile,
     required this.onAttendance,
@@ -46,16 +47,15 @@ class _StudentHomeState extends State<StudentHome> {
     super.dispose();
   }
 
-   void initBluetoothUI() async {
+  void initBluetoothUI() async {
+    AppBluetoothService.adapterState().listen((state) {
+      if (!mounted) return;
 
-  AppBluetoothService.adapterState().listen((state) {
-    if (!mounted) return;
+      final btOn = state == BluetoothAdapterState.on;
 
-    final btOn = state == BluetoothAdapterState.on;
-
-    setState(() => isBtOn = btOn);
-  });
-}
+      setState(() => isBtOn = btOn);
+    });
+  }
 
   Future<void> _checkStudentInfo() async {
     final prefs = await SharedPreferences.getInstance();
@@ -77,14 +77,12 @@ class _StudentHomeState extends State<StudentHome> {
     }
   }
 
-void listenNet() {
-  _networkListener.start((isOnline) {
+  void listenNet() {
+    _networkListener.start((isOnline) {
       if (!mounted) return;
       setState(() => net = isOnline);
     });
-
-}
-
+  }
 
   Widget buildChart(int perc, String title) {
     return Container(
@@ -144,287 +142,305 @@ void listenNet() {
   @override
   Widget build(BuildContext context) {
     return SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      mainAxisAlignment: MainAxisAlignment.start,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          height: 35,
-                          width: 280,
-                          child: Text(
-                            name.toUpperCase(),
-                            style: TextStyle(
-                              fontSize: 30,
-                              fontWeight: FontWeight.bold,
-                              color: Theme.of(context).colorScheme.primary,
-                            ),
-                          ),
+      child: Stack(
+        children: [ 
+          SingleChildScrollView(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  GestureDetector(
+                    onTap: widget.onProfile,
+                    child: const CircleAvatar(
+                      radius: 30,
+                      backgroundImage: AssetImage('assets/profile.png'),
+                    ),
+                  ),
+
+                  const SizedBox(width: 15),
+
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        name.toUpperCase(),
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).colorScheme.primary,
+                          letterSpacing: -0.5,
                         ),
-                        Container(
-                          height: 20,
-                          width: 280,
-                          child: Text(
-                            seatNumber,
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.grey,
-                            ),
+                      ),
+                      Text(
+                        seatNumber,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.black,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const Spacer(),
+                  Column(
+                    children: [
+                      Icon(
+                        net ? Icons.wifi_rounded : Icons.wifi_off_rounded,
+                        size: 40,
+                        color: net ? Colors.green : Colors.red,
+                      ),
+                      Text(
+                        net ? "Online" : "Offline",
+                        style: TextStyle(
+                          color: net ? Colors.green : Colors.red,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(width: 10),
+                ],
+              ),
+
+              Divider(color: Colors.grey, thickness: 1),
+              const SizedBox(height: 10),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text("Attendance", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black)),
+                  
+              InkWell(
+                borderRadius: BorderRadius.circular(20),
+                onTap: () {
+                  AppSettings.openAppSettings(type: AppSettingsType.bluetooth);
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isBtOn ? Colors.blue.shade50 : Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: isBtOn ? Colors.blue : Colors.red,
+                      width: 1,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.bluetooth,
+                        size: 16,
+                        color: isBtOn ? Colors.blue : Colors.red,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        isBtOn ? "Bluetooth ON" : "Bluetooth OFF",
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: isBtOn ? Colors.blue : Colors.red,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+                ],
+              ),
+              SizedBox(height: 20),
+              Container(
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.blueAccent, width: 0.2),
+                  borderRadius: BorderRadius.circular(12),
+                  color: const Color.fromARGB(255, 236, 250, 255),
+                  boxShadow: [
+                    BoxShadow(
+                      offset: Offset(2, 2),
+                      blurRadius: 5,
+                      color: Colors.grey,
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  children: [
+                    SizedBox(height: 10),
+                    Row(
+                      children: [
+                        SizedBox(width: 15),
+                        Icon(
+                          Icons.today_rounded,
+                          size: 24,
+                          color: const Color.fromARGB(255, 203, 124, 183),
+                        ),
+                        SizedBox(width: 10),
+                        Text(
+                          "Today's Attendance",
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black,
                           ),
                         ),
                       ],
                     ),
-                    IconButton(
-                      onPressed: widget.onProfile,
-                      icon: Icon(
-                        Icons.person_rounded,
-                        size: 80,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
+                    SizedBox(height: 20),
+                    buildListTile("Mathematics", "9:00 AM - 10:00 AM", true),
+                    buildListTile("IoT", "10:15 AM - 11:15 AM", false),
+                    buildListTile(
+                      "Data Structures",
+                      "11:30 AM - 12:30 PM",
+                      true,
+                    ),
+                    SizedBox(height: 20),
+                  ],
+                ),
+              ),
+              SizedBox(height: 20),
+              Container(
+                height: 370,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.blueAccent, width: 0.5),
+                  borderRadius: BorderRadius.circular(12),
+                  color: const Color.fromARGB(255, 236, 250, 255),
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      children: [
+                        SizedBox(width: 15),
+                        Icon(Icons.fact_check, size: 20, color: Colors.green),
+                        SizedBox(width: 10),
+                        Text(
+                          "Attendance",
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black,
+                          ),
+                        ),
+                        SizedBox(width: 155),
+                        TextButton(
+                          onPressed: () {},
+                          child: Text(
+                            "View All",
+                            style: TextStyle(color: Colors.blue),
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 10),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        buildChart(net ? 90 : 0, "Overall"),
+                        SizedBox(width: 20),
+                        buildChart(net ? 77 : 0, "This Month"),
+                        SizedBox(width: 20),
+                        buildChart(net ? 50 : 0, "This Week"),
+                      ],
+                    ),
+                    SizedBox(width: 20),
+                    Divider(
+                      color: Colors.grey,
+                      thickness: 1,
+                      indent: 10,
+                      endIndent: 10,
+                    ),
+                    SizedBox(height: 10),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Column(
+                          children: [
+                            Text("Max"),
+                            SizedBox(height: 7),
+                            buildChart(net ? 100 : 0, net ? "Maths" : "Null"),
+                          ],
+                        ),
+                        SizedBox(width: 40),
+                        Column(
+                          children: [
+                            Text("Min"),
+                            SizedBox(height: 7),
+                            buildChart(net ? 10 : 0, net ? "IoT" : "Null"),
+                          ],
+                        ),
+                      ],
                     ),
                   ],
                 ),
-                Divider(
-                  color: Colors.grey,
-                  thickness: 1),
-                const SizedBox(height: 10),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                AnimatedSwitcher(
-  duration: Duration(milliseconds: 300),
-  child: Text(
-    net ? "Online" : "Offline",
-    key: ValueKey(net),
-    style: TextStyle(
-      color: net ? Colors.green : Colors.red,
-      fontWeight: FontWeight.bold,
-    ),
-  ),
-),
-                SizedBox(width: 20),
-                  ]
-                ),
-                const SizedBox(height: 10),
-                Container(
-                  height: 100,
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    border: Border.all(
-                      color: isBtOn ? Colors.blueAccent : Colors.redAccent,
-                      width: 1.3,
-                    ),
-                    borderRadius: BorderRadius.circular(12),
-                    color: const Color.fromARGB(255, 236, 250, 255),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    children: [
-                      SizedBox(width: 10),
-                      Icon(
-                        isBtOn
-                            ? Icons.bluetooth_rounded
-                            : Icons.bluetooth_disabled_rounded,
-                        size: 40,
-                        color: isBtOn ? Colors.blue : Colors.red,
-                      ),
-                      SizedBox(width: 10),
-                      Text(
-                        "Bluetooth",
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black,
-                        ),
-                      ),
-                      SizedBox(width: 145),
-                      Switch(
-                        value: isBtOn,
-                        onChanged: (bool value) {
-                          AppSettings.openAppSettings(
-                            type: AppSettingsType.bluetooth,
-                          );
-                        },
-                      ),
-                      SizedBox(width: 10),
-                    ],
-                  ),
-                ),
-                SizedBox(height: 20),
+              ),
+              SizedBox(height: 100),
+            ],
+          ),
+        ),
+        Positioned(
+  bottom: 16,
+  left: 0,
+  right: 0,
+  child: Center(
+    child: SizedBox(
+      width: 250, // 👈 control button width here
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+  colors: [
+    Color(0xFF2193B0),
+    Color(0xFF6DD5ED),
+  ],
+  begin: Alignment.centerLeft,
+  end: Alignment.centerRight,
+)
+,
 
-                Container(
-                  height: 100,
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.blueAccent, width: 1.3),
-                    borderRadius: BorderRadius.circular(12),
-                    color: const Color.fromARGB(255, 236, 250, 255),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    children: [
-                      SizedBox(width: 10),
-                      Icon(
-                        Icons.class_rounded,
-                        size: 40,
-                        color: const Color.fromARGB(255, 208, 195, 82),
-                      ),
-                      SizedBox(width: 10),
-                      Text(
-                        "Scan Session",
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black,
-                        ),
-                      ),
-                      SizedBox(width: 100),
-                      ElevatedButton(
-                        onPressed: widget.onScan,
-
-                        child: Text("Scan"),
-                      ),
-                      SizedBox(width: 10),
-                    ],
-                  ),
-                ),
-                SizedBox(height: 20),
-                Container(
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.blueAccent, width: 0.2),
-                    borderRadius: BorderRadius.circular(12),
-                    color: const Color.fromARGB(255, 236, 250, 255),
-                    boxShadow: [BoxShadow(offset: Offset(2, 2), blurRadius: 5, color: Colors.grey)]
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    children: [
-                      SizedBox(height: 10),
-                      Row(
-                        children: [
-                          SizedBox(width: 15),
-                          Icon(
-                            Icons.today_rounded,
-                            size: 24,
-                            color: const Color.fromARGB(255, 203, 124, 183),
-                          ),
-                          SizedBox(width: 10),
-                          Text(
-                            "Today's Attendance",
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black,
-                            ),
-                          ),
-                        ],
-                      ),
-                      SizedBox(height: 20),
-                      buildListTile("Mathematics", "9:00 AM - 10:00 AM", true),
-                      buildListTile("IoT", "10:15 AM - 11:15 AM", false),
-                      buildListTile(
-                        "Data Structures",
-                        "11:30 AM - 12:30 PM",
-                        true,
-                      ),
-                      SizedBox(height: 20),
-                    ],
-                  ),
-                ),
-                SizedBox(height: 20),
-                Container(
-                  height: 370,
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.blueAccent, width: 0.5),
-                    borderRadius: BorderRadius.circular(12),
-                    color: const Color.fromARGB(255, 236, 250, 255),
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.start,
-                        children: [
-                          SizedBox(width: 15),
-                          Icon(Icons.fact_check, size: 20, color: Colors.green),
-                          SizedBox(width: 10),
-                          Text(
-                            "Attendance",
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black,
-                            ),
-                          ),
-                          SizedBox(width: 155),
-                          TextButton(
-                            onPressed: () {},
-                            child: Text(
-                              "View All",
-                              style: TextStyle(color: Colors.blue),
-                            ),
-                          ),
-                        ],
-                      ),
-                      SizedBox(height: 10),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          buildChart(net? 90:0, "Overall"),
-                          SizedBox(width: 20),
-                          buildChart(net? 77:0, "This Month"),
-                          SizedBox(width: 20),
-                          buildChart(net? 50:0, "This Week"),
-                        ],
-                      ),
-                      SizedBox(width: 20),
-                      Divider(
-                        color: Colors.grey,
-                        thickness: 1,
-                        indent: 10,
-                        endIndent: 10,
-                      ),
-                      SizedBox(height: 10),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Column(
-                            children: [
-                              Text("Max"),
-                              SizedBox(height: 7),
-                              buildChart(net? 100:0, net? "Maths":"Null"),
-                            ],
-                          ),
-                          SizedBox(width: 40),
-                          Column(
-                            children: [
-                              Text("Min"),
-                              SizedBox(height: 7),
-                              buildChart(net? 10:0, net? "IoT":"Null"),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                SizedBox(height: 20),
-                
-              ],
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: const [
+            BoxShadow(
+              color: Colors.black26,
+              blurRadius: 8,
+              offset: Offset(0, 4),
+            ),
+          ],
+        ),
+        child: ElevatedButton(
+          onPressed: widget.onScan,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.transparent,
+            shadowColor: Colors.transparent,
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+          ),
+          child: const Text(
+            "Scan Session",
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+              letterSpacing: 0.5,
             ),
           ),
         ),
+      ),
+    ),
+  ),
+),
+
+        ],
+      ),
     );
   }
 }

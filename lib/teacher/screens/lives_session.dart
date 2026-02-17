@@ -54,6 +54,22 @@ class _LivesSessionState extends State<LivesSession> {
     if (widget.isHistory) {
       loadOldAttendance();
     }
+
+    endTime = widget.startTime.add(
+    Duration(minutes: widget.durationMinutes),
+  );
+
+  remaining = endTime.difference(DateTime.now());
+  _startCountdown();
+
+  /// 🔥 LISTEN BLE ATTENDANCE
+  TeacherBleService.listenAttendance((roll) {
+    if (!presentStudents.contains(roll)) {
+      setState(() {
+        presentStudents.add(roll);
+      });
+    }
+  });
   }
 
   void TeacherbleServices() {
@@ -92,28 +108,6 @@ class _LivesSessionState extends State<LivesSession> {
 
     setState(() {});
   }
-
-@override
-void initState() {
-  super.initState();
-
-  endTime = widget.startTime.add(
-    Duration(minutes: widget.durationMinutes),
-  );
-
-  remaining = endTime.difference(DateTime.now());
-  _startCountdown();
-
-  /// 🔥 LISTEN BLE ATTENDANCE
-  TeacherBleService.listenAttendance((roll) {
-    if (!presentStudents.contains(roll)) {
-      setState(() {
-        presentStudents.add(roll);
-      });
-    }
-  });
-}
-
 
 void _startCountdown() {
   _timer?.cancel();
