@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:smart_attendance_bluetooth/teacher/screens/allclass.dart';
 import 'package:smart_attendance_bluetooth/teacher/screens/attendance_history.dart';
 import 'package:smart_attendance_bluetooth/teacher/screens/start_attendance.dart';
 
@@ -157,7 +158,13 @@ class QuickAction extends StatelessWidget {
                     height: 60,
                     width: 80,
                     child: ElevatedButton(
-                      onPressed: () {},
+                      onPressed: () {
+                        Navigator.push(context,
+                            MaterialPageRoute(builder:
+                                (context)=>AllSubjects()
+                            )
+                        );
+                      },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.white,
                         foregroundColor: Colors.black87,
@@ -171,7 +178,7 @@ class QuickAction extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Icon(
-                            Icons.class_sharp,
+                            Icons.menu_book_sharp,
                             color:Colors.blue,
                             size: 30,
                           ),
@@ -181,7 +188,7 @@ class QuickAction extends StatelessWidget {
                   ),
                   SizedBox(height: 3,),
                   Text(
-                    "Class\n",
+                    "Subjects\n",
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.normal,
                         fontSize: 15
@@ -262,7 +269,7 @@ class QuickAction extends StatelessWidget {
                   ),
                   SizedBox(height: 3,),
                   Text(
-                    "Live\nsSessions",
+                    "Live\nSessions",
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.normal,
                         fontSize: 15

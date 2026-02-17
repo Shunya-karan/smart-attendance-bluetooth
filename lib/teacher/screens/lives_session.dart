@@ -24,7 +24,6 @@ class LivesSession extends StatefulWidget {
     required this.isHistory
   });
 
-
   @override
   State<LivesSession> createState() => _LivesSessionState();
 }
@@ -75,8 +74,6 @@ class _LivesSessionState extends State<LivesSession> {
       }
     });
   }
-
-
 
   Future<void> loadOldAttendance() async {
     final snap = await FirebaseFirestore.instance
@@ -145,7 +142,6 @@ class _LivesSessionState extends State<LivesSession> {
         ));
 
   }
-
 
   @override
   Widget build(BuildContext context) {

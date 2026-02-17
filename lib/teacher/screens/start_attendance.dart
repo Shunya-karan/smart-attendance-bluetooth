@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:smart_attendance_bluetooth/services/firebase_service.dart';
 import 'package:smart_attendance_bluetooth/teacher/screens/lives_session.dart';
 import 'package:smart_attendance_bluetooth/teacher/widgets/blutooth_status.dart';
@@ -33,14 +34,15 @@ class _StartAttendanceState extends State<StartAttendance> {
 
 
   Future<String> generateSessionCode() async {
-    final rand = Random();
-    final number = 1000 + rand.nextInt(9000);
+    DateTime now = DateTime.now();
+    int dayOfYear = now.difference(DateTime(now.year,1,1)).inDays + 1;
+    DateFormat timeFormating=DateFormat("HHmm");
+    String futreForematted=timeFormating.format(now.add(Duration(minutes:selectedDuration!)));
 
-    String c = selectedClassName!.replaceAll(" ", "").toUpperCase();
-    final s = await FirebaseServices.getSubjectCode(selectedClassId,selectedSubjectId);
+    String classs = selectedClassName!.replaceAll(" ", "").toUpperCase();
+    final subject = await FirebaseServices.getSubjectCode(selectedClassId,selectedSubjectId);
 
-
-    sessionCode = "$c-$s-$number";
+    sessionCode = "$classs-$subject-$dayOfYear-$futreForematted";
     return "${sessionCode}";
   }
 
