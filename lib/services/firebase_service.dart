@@ -2,6 +2,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class FirebaseService {
+  final FirebaseFirestore firestore = FirebaseFirestore.instance;
+
   Future <UserCredential>loginTeacher(String email, String password) async {
     return await FirebaseAuth.instance.signInWithEmailAndPassword(
       email: email,
@@ -28,6 +30,7 @@ class FirebaseService {
         .where("isActive", isEqualTo: true)
         .snapshots();
   }
+
 
   Stream<QuerySnapshot>Subjects(selectedClassId){
     return FirebaseFirestore.instance
@@ -65,7 +68,7 @@ class FirebaseService {
       "endTime": null,
       "status": "active",
       "createdAt": FieldValue.serverTimestamp(),
-      "teacherBtName": "SMART_ATTEND_TEACHER_01"
+      "teacherBtName": "SMART_ATTEND_$sessionCode"
     });
 
     return sessionCode;
@@ -99,9 +102,7 @@ class FirebaseService {
   }
 
 
-  final FirebaseFirestore firestore = FirebaseFirestore.instance;
 
-  /// 🔵 Get students of a class
   Stream<QuerySnapshot> getStudents(String?className) {
     return firestore
         .collection("students")
@@ -119,10 +120,8 @@ class FirebaseService {
     required Map<String, bool> attendanceMap,
     required List students,
   }) async {
-
     final sessionRef =
     firestore.collection("attendance_records").doc(sessionId);
-
     // create/update session doc
     await sessionRef.set({
       "class": className,
@@ -131,9 +130,7 @@ class FirebaseService {
       "date": date.toIso8601String(),
       "createdAt": FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
-
     final batch = firestore.batch();
-
     for (var student in students) {
       final studentId = student.id;
       final present = attendanceMap[studentId] ?? false;
@@ -152,7 +149,6 @@ class FirebaseService {
     await batch.commit();
   }
 
-  /// 🔵 Load old attendance
   Future<Map<String, bool>> loadAttendance(String sessionId) async {
     final snap = await firestore
         .collection("attendance_records")
@@ -169,13 +165,14 @@ class FirebaseService {
     return map;
   }
 
-  /// 🔵 Get session history
   Stream<QuerySnapshot> getSessionHistory() {
     return firestore
         .collection("attendance_records")
         .orderBy("createdAt", descending: true)
         .snapshots();
   }
+
+
 
 
 }

@@ -24,7 +24,6 @@ class LivesSession extends StatefulWidget {
     required this.isHistory
   });
 
-
   @override
   State<LivesSession> createState() => _LivesSessionState();
 }
@@ -35,64 +34,47 @@ class _LivesSessionState extends State<LivesSession> {
   Duration remaining=Duration.zero;
   Map<String, bool> attendanceMap = {};
   final FirebaseServices=FirebaseService();
-  List presentStudents=[];
   List studentsList = [];
 
   @override
-  void initState() {
-    super.initState();
-    endTime = widget.startTime.add(
-        Duration(minutes: widget.durationMinutes)
-    );
-    remaining = endTime.difference(DateTime.now());
+void initState() {
+  super.initState();
 
-    if (!widget.isHistory) {
-      _startCountdown();
-      TeacherbleServices();
-    }
-
-    if (widget.isHistory) {
-      loadOldAttendance();
-    }
-
-    endTime = widget.startTime.add(
+  endTime = widget.startTime.add(
     Duration(minutes: widget.durationMinutes),
   );
 
   remaining = endTime.difference(DateTime.now());
-  _startCountdown();
 
-  /// 🔥 LISTEN BLE ATTENDANCE
-  TeacherBleService.listenAttendance((roll) {
-    if (!presentStudents.contains(roll)) {
-      setState(() {
-        presentStudents.add(roll);
-      });
-    }
-  });
+  if (widget.isHistory) {
+    loadOldAttendance();
+  } else {
+    _startCountdown();
+    TeacherbleServices(); // ✅ ONLY BLE LISTENER
   }
+}
 
   void TeacherbleServices() {
-    TeacherBleService.listenAttendance((data) {
-      final parts = data.trim().split('|');
-      final rollNo = parts.last.trim();
+  TeacherBleService.listenAttendance((data) {
+    final parts = data.trim().split('|');
+    if (parts.isEmpty) return;
 
-      for (var student in studentsList) {
-        if (student["rollNo"].toString() == rollNo) {
-          final studentId = student.id;
+    final rollNo = parts.last.trim();
 
-          if (attendanceMap[studentId] == true) return;
+    for (var student in studentsList) {
+      if (student["rollNo"].toString() == rollNo) {
+        final studentId = student.id;
 
-          setState(() {
-            attendanceMap[studentId] = true;
-          });
+        if (attendanceMap[studentId] == true) return;
 
-          break;
-        }
+        setState(() {
+          attendanceMap[studentId] = true;
+        });
+        break;
       }
-    });
-  }
-
+    }
+  });
+}
 
 
   Future<void> loadOldAttendance() async {
@@ -128,18 +110,17 @@ void _startCountdown() {
     }
 
     setState(() {
-      remaining = diff;
-    });
+      remaining = diff;}
+    );
   });
 }
 
-@override
-void dispose() {
-  _timer?.cancel();
-  TeacherBleService.stopBleSession();
-  super.dispose();
-}
 
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
 
   String formatDuration(Duration d) {
     final minutes = d.inMinutes.remainder(60).toString().padLeft(2, '0');
@@ -169,7 +150,6 @@ void dispose() {
         ));
 
   }
-
 
   @override
   Widget build(BuildContext context) {

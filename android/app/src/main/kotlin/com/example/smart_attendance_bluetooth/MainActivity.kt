@@ -52,6 +52,7 @@ class MainActivity : FlutterActivity() {
                     stopBleServer()
                     result.success(null)
                 }
+
                 else -> result.notImplemented()
             }
         }
