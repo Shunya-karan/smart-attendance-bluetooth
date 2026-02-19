@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:smart_attendance_bluetooth/student/student_info.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 
 class StudentProfile extends StatefulWidget {
   const StudentProfile({super.key});
@@ -12,6 +14,13 @@ class StudentProfile extends StatefulWidget {
 class _StudentProfileState extends State<StudentProfile> {
   String name = "";
   String seatNumber = "";
+  String? photoPath;
+
+   @override
+  void dispose() {
+    super.dispose();
+  }
+
 
   @override
   void initState() {
@@ -23,12 +32,33 @@ class _StudentProfileState extends State<StudentProfile> {
     final prefs = await SharedPreferences.getInstance();
     final n1 = prefs.getString("name");
     final n2 = prefs.getString("seatNumber");
+    final p = prefs.getString("photoPath");
 
     setState(() {
       name = n1 ?? "";
       seatNumber = n2 ?? "";
+      photoPath = p;
     });
   }
+
+  final ImagePicker picker = ImagePicker();
+
+Future<void> pickProfilePhoto() async {
+  final XFile? image = await picker.pickImage(
+    source: ImageSource.gallery,
+    imageQuality: 70,
+  );
+
+  if (image == null) return;
+
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setString("photoPath", image.path);
+
+  setState(() {
+    photoPath = image.path;
+  });
+}
+
 
   Future<void> logout() async {
     final pref = await SharedPreferences.getInstance();
@@ -46,12 +76,19 @@ class _StudentProfileState extends State<StudentProfile> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.person_rounded,
-              size: 100,
-              color: Theme.of(context).colorScheme.primary,
-            ),
-            SizedBox(height: 0),
+            GestureDetector(
+                        onTap: () {
+                          pickProfilePhoto();
+                        },
+                        child: CircleAvatar(
+                          radius: 50,
+                          backgroundImage: photoPath != null
+                              ? FileImage(File(photoPath!))
+                              : AssetImage('assets/profile.png'),
+                        ),
+                      ),
+
+            SizedBox(height: 10),
             Text(
               "Student",
               style: TextStyle(

@@ -4,35 +4,36 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class FirebaseService {
   final FirebaseFirestore firestore = FirebaseFirestore.instance;
 
-  Future <UserCredential>loginTeacher(String email, String password) async {
+  Future<UserCredential> loginTeacher(String email, String password) async {
     return await FirebaseAuth.instance.signInWithEmailAndPassword(
       email: email,
       password: password,
     );
   }
 
-  Future<UserCredential>signupTeacher(String email,String password)async{
-    return await FirebaseAuth.instance.createUserWithEmailAndPassword(email: email, password: password);
+  Future<UserCredential> signupTeacher(String email, String password) async {
+    return await FirebaseAuth.instance.createUserWithEmailAndPassword(
+      email: email,
+      password: password,
+    );
   }
 
-  Stream<QuerySnapshot>departmentList(){
-    return  FirebaseFirestore.instance
+  Stream<QuerySnapshot> departmentList() {
+    return FirebaseFirestore.instance
         .collection("departments")
         .where("isActive")
         .orderBy("name")
         .snapshots();
-
   }
 
-  Stream<QuerySnapshot>allClasses(){
+  Stream<QuerySnapshot> allClasses() {
     return FirebaseFirestore.instance
         .collection("classes")
         .where("isActive", isEqualTo: true)
         .snapshots();
   }
 
-
-  Stream<QuerySnapshot>Subjects(selectedClassId){
+  Stream<QuerySnapshot> Subjects(selectedClassId) {
     return FirebaseFirestore.instance
         .collection("classes")
         .doc(selectedClassId)
@@ -68,14 +69,13 @@ class FirebaseService {
       "endTime": null,
       "status": "active",
       "createdAt": FieldValue.serverTimestamp(),
-      "teacherBtName": "SMART_ATTEND_$sessionCode"
+      "teacherBtName": "SMART_ATTEND_$sessionCode",
     });
 
     return sessionCode;
   }
 
-
-  Future<String?> getSubjectCode(String?classId, String?subjectId) async {
+  Future<String?> getSubjectCode(String? classId, String? subjectId) async {
     final doc = await FirebaseFirestore.instance
         .collection("classes")
         .doc(classId)
@@ -90,20 +90,14 @@ class FirebaseService {
     return null;
   }
 
-
-  Future<void>endSession(String?sessionId){
+  Future<void> endSession(String? sessionId) {
     return FirebaseFirestore.instance
         .collection("attendance_sessions")
         .doc(sessionId)
-        .update({
-      "status":"closed",
-      "endTime":FieldValue.serverTimestamp()
-    });
+        .update({"status": "closed", "endTime": FieldValue.serverTimestamp()});
   }
 
-
-
-  Stream<QuerySnapshot> getStudents(String?className) {
+  Stream<QuerySnapshot> getStudents(String? className) {
     return firestore
         .collection("students")
         .where("className", isEqualTo: className)
@@ -120,8 +114,9 @@ class FirebaseService {
     required Map<String, bool> attendanceMap,
     required List students,
   }) async {
-    final sessionRef =
-    firestore.collection("attendance_records").doc(sessionId);
+    final sessionRef = firestore
+        .collection("attendance_records")
+        .doc(sessionId);
     // create/update session doc
     await sessionRef.set({
       "class": className,
@@ -135,8 +130,7 @@ class FirebaseService {
       final studentId = student.id;
       final present = attendanceMap[studentId] ?? false;
 
-      final docRef =
-      sessionRef.collection("students").doc(studentId);
+      final docRef = sessionRef.collection("students").doc(studentId);
 
       batch.set(docRef, {
         "name": student["name"],
@@ -172,7 +166,40 @@ class FirebaseService {
         .snapshots();
   }
 
+  Future<Map<String, Map<String, int>>> getSubjectTypeAttendanceStats(
+    String studentId,
+  ) async {
+    final snap = await firestore.collection("attendance_records").get();
 
+    Map<String, int> total = {};
+    Map<String, int> present = {};
 
+    for (var session in snap.docs) {
+      final subject = session["subject"];
+      final type = session["sessiontype"]; // Lecture / Practical / Tutorial
 
+      final key = "$subject | $type";
+
+      final studentDoc = await session.reference
+          .collection("students")
+          .doc(studentId)
+          .get();
+
+      if (!studentDoc.exists) continue;
+
+      total[key] = (total[key] ?? 0) + 1;
+
+      if (studentDoc["present"] == true) {
+        present[key] = (present[key] ?? 0) + 1;
+      }
+    }
+
+    Map<String, Map<String, int>> result = {};
+
+    total.forEach((key, t) {
+      result[key] = {"total": t, "present": present[key] ?? 0};
+    });
+
+    return result;
+  }
 }

@@ -50,16 +50,15 @@ void initState() {
     loadOldAttendance();
   } else {
     _startCountdown();
-    TeacherbleServices(); // ✅ ONLY BLE LISTENER
+    TeacherbleServices();
   }
 }
 
   void TeacherbleServices() {
   TeacherBleService.listenAttendance((data) {
-    final parts = data.trim().split('|');
-    if (parts.isEmpty) return;
+    if (data.isEmpty) return;
 
-    final rollNo = parts.last.trim();
+    final rollNo = data.trim();
 
     for (var student in studentsList) {
       if (student["rollNo"].toString() == rollNo) {

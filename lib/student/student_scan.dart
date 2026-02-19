@@ -28,17 +28,16 @@ class _StudentScanState extends State<StudentScan> with WidgetsBindingObserver {
   bool scanning = false;
   bool isLocationOn = false;
   bool isLocationPermissionGranted = false;
-  bool dialogShown = false;
-  bool attendanceSent = false;
 
   String rollNo = "";
 
   bool userInitiatedCheck = false;
 
+  bool readyToScan() => isBtOn && isLocationOn && isLocationPermissionGranted;
+
   TextEditingController searchController = TextEditingController();
   String searchQuery = "";
-
-  Timer? _ticker;
+  Set<String> markedSessions = {};
 
   @override
   void initState() {
@@ -48,7 +47,6 @@ class _StudentScanState extends State<StudentScan> with WidgetsBindingObserver {
     initBluetoothUI();
     checkLocationStatus();
     getRoll();
-    startGlobalTicker();
 
     searchController.addListener(() {
       setState(() {
@@ -59,9 +57,9 @@ class _StudentScanState extends State<StudentScan> with WidgetsBindingObserver {
 
   @override
   void dispose() {
-    _ticker?.cancel();
     sessionSub?.cancel();
     sessionSub = null;
+    searchController.dispose();
 
     bleManager.stopScan();
     WidgetsBinding.instance.removeObserver(this);
@@ -69,7 +67,10 @@ class _StudentScanState extends State<StudentScan> with WidgetsBindingObserver {
   }
 
   @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
+  void didChangeAppLifecycleState(AppLifecycleState state) async {
+    if (state == AppLifecycleState.resumed) {
+      await checkLocationStatus();
+    }
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive) {
       sessionSub?.cancel();
@@ -77,56 +78,46 @@ class _StudentScanState extends State<StudentScan> with WidgetsBindingObserver {
     }
   }
 
-  void startGlobalTicker() {
-    _ticker?.cancel();
-    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) {
-        setState(() {});
-      }
-    });
-  }
-
   Future<void> startLiveScan() async {
-  // 🔑 allow re-scan
-  await sessionSub?.cancel();
-  sessionSub = null;
+    // 🔑 allow re-scan
+    await sessionSub?.cancel();
+    sessionSub = null;
 
-  if (scanning) return;
+    if (scanning) return;
 
-  if (!isBtOn || !isLocationOn || !isLocationPermissionGranted) {
-    setState(() => scanning = false);
-    return;
+    if (!isBtOn || !isLocationOn || !isLocationPermissionGranted) {
+      setState(() => scanning = false);
+      return;
+    }
+
+    setState(() => scanning = true);
+
+    nearbySessions.clear();
+
+    sessionSub = bleManager.startSessionScan().listen(
+      (sessions) {
+        if (!mounted) return;
+        setState(() {
+          nearbySessions = sessions;
+        });
+      },
+      onDone: () {
+        // 🔑 VERY IMPORTANT
+        if (!mounted) return;
+        setState(() {
+          scanning = false;
+          sessionSub = null;
+        });
+      },
+      onError: (e) {
+        if (!mounted) return;
+        setState(() {
+          scanning = false;
+          sessionSub = null;
+        });
+      },
+    );
   }
-
-  setState(() => scanning = true);
-
-  nearbySessions.clear();
-
-  sessionSub = bleManager.startSessionScan().listen(
-    (sessions) {
-      if (!mounted) return;
-      setState(() {
-        nearbySessions = sessions;
-      });
-    },
-    onDone: () {
-      // 🔑 VERY IMPORTANT
-      if (!mounted) return;
-      setState(() {
-        scanning = false;
-        sessionSub = null;
-      });
-    },
-    onError: (e) {
-      if (!mounted) return;
-      setState(() {
-        scanning = false;
-        sessionSub = null;
-      });
-    },
-  );
-}
-
 
   Future<void> getRoll() async {
     final pref = await SharedPreferences.getInstance();
@@ -139,9 +130,19 @@ class _StudentScanState extends State<StudentScan> with WidgetsBindingObserver {
     }
   }
 
-  void showSnack(String msg) {
+  void showSnack(String msg, {Color? color}) {
     ScaffoldMessenger.of(context).clearSnackBars();
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          msg,
+          style: TextStyle(
+            color: color ?? Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> checkLocationStatus() async {
@@ -152,14 +153,6 @@ class _StudentScanState extends State<StudentScan> with WidgetsBindingObserver {
       isLocationOn = serviceOn;
       isLocationPermissionGranted = permission.isGranted;
     });
-
-    if (userInitiatedCheck) {
-      if (!isLocationPermissionGranted) {
-        showSnack("Location permission required");
-      } else if (!isLocationOn) {
-        showSnack("Please turn ON Location");
-      }
-    }
   }
 
   void initBluetoothUI() {
@@ -172,13 +165,9 @@ class _StudentScanState extends State<StudentScan> with WidgetsBindingObserver {
         isBtOn = btOn;
       });
 
-      if (!btOn) {
+      if (!isBtOn) {
         sessionSub?.cancel();
         bleManager.stopScan();
-
-        if (userInitiatedCheck) {
-          showSnack("Please turn ON Bluetooth");
-        }
       }
     });
   }
@@ -189,48 +178,60 @@ class _StudentScanState extends State<StudentScan> with WidgetsBindingObserver {
     return "$m:$s";
   }
 
-  void _showBtDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text("Bluetooth Required"),
-          content: const Text(
-            "Please turn ON Bluetooth to continue attendance.",
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                AppSettings.openAppSettings(type: AppSettingsType.bluetooth);
-              },
-              child: const Text("Turn On"),
-            ),
-          ],
+  Future<void> saveOfflineSession(String session) async {
+    final prefs = await SharedPreferences.getInstance();
+
+    final List<String> sessions = prefs.getStringList("offline_sessions") ?? [];
+
+    if (!sessions.contains(session)) {
+      sessions.add(session);
+      await prefs.setStringList("offline_sessions", sessions);
+    }
+  }
+
+  Widget _buildStatusBadge(bool expired, bool marked, DateTime endTime) {
+    if (marked) {
+      return _badge("Marked", Colors.green);
+    }
+
+    if (expired) {
+      return _badge("Expired", Colors.red);
+    }
+
+    return StreamBuilder<int>(
+      key: ValueKey(endTime),
+      stream: Stream.periodic(const Duration(seconds: 1), (i) => i),
+      builder: (_, __) {
+        final remaining = endTime.difference(DateTime.now());
+        return _badge(
+          remaining.inSeconds <= 0 ? "Expired" : format(remaining),
+          Colors.red,
         );
       },
     );
   }
 
-  Widget _buildStatusBadge(bool expired, dynamic remaining) {
+  Widget _badge(String text, Color color) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.red.withOpacity(0.1),
+        color: color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(6),
       ),
       child: Text(
-        expired ? "Expired" : format(remaining),
+        text,
         style: TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.bold,
-          color: Colors.red[700],
+          color: color,
         ),
       ),
     );
   }
 
   Widget buildSession(BleSession session) {
+    final alreadyMarked = markedSessions.contains(session.sessionId);
+
     final parts = session.sessionId.split('-');
     if (parts.length != 4) return const SizedBox();
 
@@ -275,7 +276,7 @@ class _StudentScanState extends State<StudentScan> with WidgetsBindingObserver {
               const Spacer(),
               Padding(
                 padding: const EdgeInsets.all(8),
-                child: _buildStatusBadge(expired, remaining),
+                child: _buildStatusBadge(expired, alreadyMarked, endTime),
               ),
             ],
           ),
@@ -292,17 +293,13 @@ class _StudentScanState extends State<StudentScan> with WidgetsBindingObserver {
           Padding(
             padding: const EdgeInsets.all(8),
             child: ElevatedButton(
-              onPressed: expired || attendanceSent
+              onPressed: expired || alreadyMarked
                   ? null
                   : () async {
                       if (rollNo.isEmpty) {
                         showSnack("Roll number not found. Please login again.");
                         return;
                       }
-
-                      setState(() {
-                        attendanceSent = true;
-                      });
 
                       final success = await bleManager.markAttendance(
                         session: session,
@@ -317,17 +314,26 @@ class _StudentScanState extends State<StudentScan> with WidgetsBindingObserver {
                         await sessionSub?.cancel();
                         sessionSub = null;
                         bleManager.stopScan();
-                      }
 
-                      if (!success) {
                         setState(() {
-                          attendanceSent = false;
+                          markedSessions.add(session.sessionId);
                         });
+
+                        final now = DateTime.now();
+                        final hour12 = now.hour % 12 == 0 ? 12 : now.hour % 12;
+                        final period = now.hour >= 12 ? "PM" : "AM";
+                        final time =
+                            "${hour12.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')} $period";
+
+                        await saveOfflineSession(
+                          "${session.sessionId} | $time",
+                        );
+                        showSnack("Attendance saved locally offline.");
                       }
                     },
 
               style: ElevatedButton.styleFrom(
-                backgroundColor: expired || attendanceSent
+                backgroundColor: expired || alreadyMarked
                     ? Colors.grey
                     : Theme.of(context).colorScheme.secondary,
 
@@ -357,6 +363,11 @@ class _StudentScanState extends State<StudentScan> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
+    final screenwidth = MediaQuery.of(context).size.width;
+    final screenheight = MediaQuery.of(context).size.height;
+
+    double h = screenwidth < 405 ? 110 : 70;
+
     final filteredSessions = searchQuery.isEmpty
         ? nearbySessions
         : nearbySessions.where((session) {
@@ -364,6 +375,8 @@ class _StudentScanState extends State<StudentScan> with WidgetsBindingObserver {
               searchQuery.toLowerCase(),
             );
           }).toList();
+
+          
     return SafeArea(
       child: Stack(
         children: [
@@ -398,7 +411,7 @@ class _StudentScanState extends State<StudentScan> with WidgetsBindingObserver {
                   children: [
                     Expanded(
                       child: Container(
-                        height: 70,
+                        height: h,
                         decoration: BoxDecoration(
                           border: Border.all(
                             color: isBtOn
@@ -413,36 +426,54 @@ class _StudentScanState extends State<StudentScan> with WidgetsBindingObserver {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Row(
+                            Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(
-                                  isBtOn
-                                      ? Icons.bluetooth_rounded
-                                      : Icons.bluetooth_disabled_rounded,
-                                  size: 28,
-                                  color: isBtOn ? Colors.blue : Colors.red,
+                                Row(
+                                  children: [
+                                    Icon(
+                                      isBtOn
+                                          ? Icons.bluetooth_rounded
+                                          : Icons.bluetooth_disabled_rounded,
+                                      size: 28,
+                                      color: isBtOn ? Colors.blue : Colors.red,
+                                    ),
+                                    const SizedBox(width: 5),
+                                    const Text(
+                                      "Bluetooth",
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                const SizedBox(width: 5),
-                                const Text(
-                                  "Bluetooth",
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
+                                if (screenwidth < 405)
+                                  Transform.scale(
+                                    scale: 0.8,
+                                    child: Switch(
+                                      value: isBtOn,
+                                      onChanged: (val) {
+                                        AppSettings.openAppSettings(
+                                          type: AppSettingsType.bluetooth,
+                                        );
+                                      },
+                                    ),
                                   ),
-                                ),
                               ],
                             ),
-                            Transform.scale(
-                              scale: 0.8,
-                              child: Switch(
-                                value: isBtOn,
-                                onChanged: (val) {
-                                  AppSettings.openAppSettings(
-                                    type: AppSettingsType.bluetooth,
-                                  );
-                                },
+                            if (screenwidth > 405)
+                              Transform.scale(
+                                scale: 0.8,
+                                child: Switch(
+                                  value: isBtOn,
+                                  onChanged: (val) {
+                                    AppSettings.openAppSettings(
+                                      type: AppSettingsType.bluetooth,
+                                    );
+                                  },
+                                ),
                               ),
-                            ),
                           ],
                         ),
                       ),
@@ -450,7 +481,7 @@ class _StudentScanState extends State<StudentScan> with WidgetsBindingObserver {
                     const SizedBox(width: 5), // spacing between cards
                     Expanded(
                       child: Container(
-                        height: 70,
+                        height: h,
                         decoration: BoxDecoration(
                           border: Border.all(
                             color: isLocationOn && isLocationPermissionGranted
@@ -514,26 +545,49 @@ class _StudentScanState extends State<StudentScan> with WidgetsBindingObserver {
                                         : Colors.red,
                                   ),
                                 ),
+                                SizedBox(height: 1),
+                                if (screenwidth < 405)
+                                  Transform.scale(
+                                    scale: 0.8,
+                                    child: Switch(
+                                      value:
+                                          isLocationOn &&
+                                          isLocationPermissionGranted,
+                                      onChanged: (_) async {
+                                        if (!isLocationPermissionGranted) {
+                                          await Permission.locationWhenInUse
+                                              .request();
+                                        } else if (!isLocationOn) {
+                                          AppSettings.openAppSettings(
+                                            type: AppSettingsType.location,
+                                          );
+                                        }
+                                        await checkLocationStatus();
+                                      },
+                                    ),
+                                  ),
                               ],
                             ),
-                            Transform.scale(
-                              scale: 0.8,
-                              child: Switch(
-                                value:
-                                    isLocationOn && isLocationPermissionGranted,
-                                onChanged: (_) async {
-                                  if (!isLocationPermissionGranted) {
-                                    await Permission.locationWhenInUse
-                                        .request();
-                                  } else if (!isLocationOn) {
-                                    AppSettings.openAppSettings(
-                                      type: AppSettingsType.location,
-                                    );
-                                  }
-                                  await checkLocationStatus();
-                                },
+                            if (screenwidth > 405)
+                              Transform.scale(
+                                scale: 0.8,
+                                child: Switch(
+                                  value:
+                                      isLocationOn &&
+                                      isLocationPermissionGranted,
+                                  onChanged: (_) async {
+                                    if (!isLocationPermissionGranted) {
+                                      await Permission.locationWhenInUse
+                                          .request();
+                                    } else if (!isLocationOn) {
+                                      AppSettings.openAppSettings(
+                                        type: AppSettingsType.location,
+                                      );
+                                    }
+                                    await checkLocationStatus();
+                                  },
+                                ),
                               ),
-                            ),
                           ],
                         ),
                       ),
@@ -555,7 +609,7 @@ class _StudentScanState extends State<StudentScan> with WidgetsBindingObserver {
                     controller: searchController,
                     textAlignVertical: TextAlignVertical.center,
                     decoration: InputDecoration(
-                      hintText: "Enter Session ID",
+                      hintText: "Search Sessions...",
                       prefixIcon: const Icon(
                         Icons.search_rounded,
                         color: Colors.grey,
@@ -587,19 +641,23 @@ class _StudentScanState extends State<StudentScan> with WidgetsBindingObserver {
                       ),
                     ),
                     IconButton(
-                      onPressed: scanning
-                          ? null
-                          : () async {
-                        userInitiatedCheck = true;
-
-                        await checkLocationStatus();
-
-                        if (!isBtOn) return;
+                      onPressed: () async {
+                        if (!isBtOn)
+                          showSnack(
+                            "Please turn ON Bluetooth . . . ! ! ",
+                            color: Colors.red,
+                          );
                         if (!isLocationOn || !isLocationPermissionGranted) {
-                        userInitiatedCheck = false;
+                          showSnack(
+                            "Turn ON Location / Grant Permission . . . ! ! ",
+                            color: Colors.red,
+                          );
+                        }
 
-                        return;
-                        };
+                        if (!readyToScan()) {
+                          return;
+                        }
+                        ;
 
                         startLiveScan();
                       },
@@ -616,8 +674,10 @@ class _StudentScanState extends State<StudentScan> with WidgetsBindingObserver {
 
                 ...(filteredSessions.isEmpty
                     ? [
-                        const Text(
-                          'No nearby sessions found',
+                        Text(
+                          isBtOn && isLocationOn && isLocationPermissionGranted
+                              ? 'No nearby sessions found...'
+                              : 'Turn ON Bluetooth and Location to scan.',
                           style: TextStyle(fontSize: 16, color: Colors.red),
                         ),
                       ]
@@ -629,74 +689,7 @@ class _StudentScanState extends State<StudentScan> with WidgetsBindingObserver {
                             ),
                           )
                           .toList()),
-
-                SizedBox(height: 600),
               ],
-            ),
-          ),
-          Positioned(
-            bottom:
-      16,
-  left: 0,
-  right: 0,
-            child: Center(
-              child: SizedBox(
-                width: 250,
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF2193B0), Color(0xFF6DD5ED)],
-                      begin: Alignment.centerLeft,
-                      end: Alignment.centerRight,
-                    ),
-
-                    borderRadius: BorderRadius.circular(14),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Colors.black26,
-                        blurRadius: 8,
-                        offset: Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: ElevatedButton(
-                    onPressed: scanning
-                        ? null
-                        : () async {
-                      userInitiatedCheck = true;
-
-                      await checkLocationStatus();
-
-                      if (!isBtOn) return;
-                      if (!isLocationOn || !isLocationPermissionGranted) {
-                        userInitiatedCheck = false;
-
-                        return;
-                        };
-
-                      startLiveScan();
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.transparent,
-                      shadowColor: Colors.transparent,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
-                    child: Text(
-                      scanning ? "Scanning..." : "Scan Session",
-
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
             ),
           ),
         ],

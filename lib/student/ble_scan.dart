@@ -198,7 +198,7 @@ class BleManager {
         if (s.uuid == BLE_SERVICE_UUID) {
           for (final c in s.characteristics) {
             if (c.uuid == BLE_CHAR_UUID) {
-              final payload = "${session.sessionId}|$studentId";
+              final payload = "$studentId";
               await c.write(payload.codeUnits, withoutResponse: false);
               return true;
             }
