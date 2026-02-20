@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:smart_attendance_bluetooth/services/firebase_service.dart';
 import 'package:smart_attendance_bluetooth/teacher/widgets/QuickAction.dart';
 import 'package:smart_attendance_bluetooth/teacher/widgets/Statscard.dart';
 import 'package:smart_attendance_bluetooth/teacher/widgets/blutooth_status.dart';
@@ -15,7 +16,7 @@ class TeacherDashboard extends StatefulWidget {
 
 class _TeacherDashboardState extends State<TeacherDashboard> {
   String teacherName="";
-
+  final firebaseservices=FirebaseService();
 
   Future<void> fetchTeacherName() async {
     final uid = FirebaseAuth.instance.currentUser!.uid;
@@ -85,13 +86,10 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                 ),
               ),
               SizedBox(height: 10),
-
               //Bluetooth Status
               BluetoothStatusCard(),
               //Notification
-
               NotificationBox(message: "Next Session At 10:00 Am in SYCS class",),
-
               // Stats cards
               Container(
                 width: double.infinity,
@@ -99,12 +97,10 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                 decoration: BoxDecoration(
                   color: Colors.white30,
                 ),
-                // color: Colors.white54,
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.start,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-
                     SizedBox(height: 10,),
                     Text("Stats",
                     style: Theme.of(context).textTheme.titleMedium,),
@@ -113,25 +109,65 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                       scrollDirection: Axis.horizontal,
                       child: Row(
                         children: [
-                          StatsCard(
-                            heading: "Sessions Today",
-                            totalCount: "20",
-                            cardColor: Color.fromRGBO(69, 154, 251, 1.0),
-                            statsIcons: Icons.school_outlined,
+                          FutureBuilder(
+                            future: firebaseservices.getTodaySessionCount(),
+                            builder: (context, asyncSnapshot) {
+                              if(!asyncSnapshot.hasData){
+                                return StatsCard(
+                                  heading: "Sessions Today",
+                                  totalCount: "...",
+                                  cardColor: Color.fromRGBO(69, 154, 251, 1.0),
+                                  statsIcons: Icons.school_outlined,
+                                );
+                              }
+                              return StatsCard(
+                                heading: "Sessions Today",
+                                totalCount: asyncSnapshot.data.toString(),
+                                cardColor: Color.fromRGBO(69, 154, 251, 1.0),
+                                statsIcons: Icons.school_outlined,
+                              );
+                            }
                           ),
                           SizedBox(width: 10),
-                          StatsCard(
-                            heading: "Last Session Present",
-                            totalCount: "20",
-                            cardColor: Color.fromRGBO(23, 159, 88, 1.0),
-                            statsIcons: Icons.co_present_outlined,
+
+                          FutureBuilder(
+                            future: firebaseservices.getTotalPresentToday(),
+                            builder: (context, asyncSnapshot) {
+                              if(!asyncSnapshot.hasData){
+                                return StatsCard(
+                                  heading: "Last Session Present",
+                                  totalCount:asyncSnapshot.data.toString(),
+                                  cardColor: Color.fromRGBO(23, 159, 88, 1.0),
+                                  statsIcons: Icons.co_present_outlined,
+                                );
+                              }
+                              return StatsCard(
+                                heading: "Last Session Present",
+                                totalCount:asyncSnapshot.data.toString(),
+                                cardColor: Color.fromRGBO(23, 159, 88, 1.0),
+                                statsIcons: Icons.co_present_outlined,
+                              );
+                            }
                           ),
                           SizedBox(width: 10),
-                          StatsCard(
-                            heading: "Last Session Absent",
-                            totalCount: "20",
-                            cardColor: Color.fromRGBO(186, 0, 0, 1.0),
-                            statsIcons: Icons.hourglass_empty_outlined,
+                          FutureBuilder(
+                            future: firebaseservices.getTotalAbsentToday(),
+                            builder: (context, asyncSnapshot) {
+                              if(!asyncSnapshot.hasData){
+                                return StatsCard(
+                                  heading: "Last Session Absent",
+                                  totalCount: "...",
+                                  cardColor: Color.fromRGBO(186, 0, 0, 1.0),
+                                  statsIcons: Icons.hourglass_empty_outlined,
+                                );
+                              }
+                              return StatsCard(
+                                heading: "Last Session Absent",
+                                totalCount: asyncSnapshot.data.toString(),
+                                cardColor: Color.fromRGBO(186, 0, 0, 1.0),
+                                statsIcons: Icons.hourglass_empty_outlined,
+                              );
+                            }
                           ),
                           SizedBox(width: 10),
                         ],

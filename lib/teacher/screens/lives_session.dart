@@ -34,6 +34,7 @@ class _LivesSessionState extends State<LivesSession> {
   Duration remaining=Duration.zero;
   Map<String, bool> attendanceMap = {};
   final FirebaseServices=FirebaseService();
+  List presentStudents=[];
   List studentsList = [];
 
   @override
@@ -57,10 +58,10 @@ class _LivesSessionState extends State<LivesSession> {
   void TeacherbleServices() {
     TeacherBleService.listenAttendance((data) {
       final parts = data.trim().split('|');
-      final rollNo = parts.last.trim();
+      final seatNo = parts.last.trim();
 
       for (var student in studentsList) {
-        if (student["rollNo"].toString() == rollNo) {
+        if (student["seatNo"].toString() == seatNo) {
           final studentId = student.id;
 
           if (attendanceMap[studentId] == true) return;
@@ -89,30 +90,37 @@ class _LivesSessionState extends State<LivesSession> {
     setState(() {});
   }
 
-  void _startCountdown() {
-    _timer?.cancel();
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      final now = DateTime.now();
-      final diff = endTime.difference(now);
 
-      if (diff.isNegative || diff.inSeconds == 0) {
-        timer.cancel();
-        setState(() {
-          remaining = Duration.zero;
-        });
-        return;
-      }
+
+
+void _startCountdown() {
+  _timer?.cancel();
+  _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+    final now = DateTime.now();
+    final diff = endTime.difference(now);
+
+    if (diff.isNegative || diff.inSeconds == 0) {
+      timer.cancel();
+      TeacherBleService.stopBleSession();
       setState(() {
-        remaining = diff;
+        remaining = Duration.zero;
       });
-    });
-  }
+      return;
+    }
 
-  @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
-  }
+    setState(() {
+      remaining = diff;
+    });
+  });
+}
+
+@override
+void dispose() {
+  _timer?.cancel();
+  TeacherBleService.stopBleSession();
+  super.dispose();
+}
+
 
   String formatDuration(Duration d) {
     final minutes = d.inMinutes.remainder(60).toString().padLeft(2, '0');
@@ -284,7 +292,7 @@ class _LivesSessionState extends State<LivesSession> {
                                   style: Theme.of(context).textTheme.titleSmall,
                                 ),
                                 subtitle: Text(
-                                  "Roll No : ${student["rollNo"]}",
+                                  "Seat No : ${student["seatNo"]}",
                                   style: TextStyle(fontWeight: FontWeight.w500),
                                 ),
                                 trailing: ElevatedButton(
