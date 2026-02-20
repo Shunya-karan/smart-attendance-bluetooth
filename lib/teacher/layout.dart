@@ -14,7 +14,7 @@ class _teacher_LayoutState extends State<teacher_Layout> {
   int currentpage=0;
   List<Widget>Pages=[
     TeacherDashboard(),
-    teacher_profile()
+    TeacherProfile()
   ];
   @override
   Widget build(BuildContext context) {

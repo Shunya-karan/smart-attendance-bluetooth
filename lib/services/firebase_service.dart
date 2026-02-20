@@ -2,9 +2,11 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class FirebaseService {
+
   final FirebaseFirestore firestore = FirebaseFirestore.instance;
 
-  Future<UserCredential> loginTeacher(String email, String password) async {
+  //Authentication
+  Future <UserCredential>loginTeacher(String email, String password) async {
     return await FirebaseAuth.instance.signInWithEmailAndPassword(
       email: email,
       password: password,
@@ -18,22 +20,35 @@ class FirebaseService {
     );
   }
 
-  Stream<QuerySnapshot> departmentList() {
-    return FirebaseFirestore.instance
-        .collection("departments")
-        .where("isActive")
-        .orderBy("name")
-        .snapshots();
+
+  //Teacher details
+  Future<DocumentSnapshot>fetchTeacherDetails()async{
+      final uid=FirebaseAuth.instance.currentUser!.uid;
+      return await FirebaseFirestore.instance
+          .collection("teachers")
+          .doc(uid)
+          .get();
   }
 
-  Stream<QuerySnapshot> allClasses() {
+  //Department list
+Stream<QuerySnapshot> departmentList() {
+  return FirebaseFirestore.instance
+      .collection("departments")
+      .where("isActive", isEqualTo: true)
+      .orderBy("name")
+      .snapshots();
+}
+
+  //all class
+  Stream<QuerySnapshot>allClasses(){
     return FirebaseFirestore.instance
         .collection("classes")
         .where("isActive", isEqualTo: true)
         .snapshots();
   }
 
-  Stream<QuerySnapshot> Subjects(selectedClassId) {
+  //all subject in particular class
+  Stream<QuerySnapshot>Subjects(selectedClassId){
     return FirebaseFirestore.instance
         .collection("classes")
         .doc(selectedClassId)
@@ -42,6 +57,7 @@ class FirebaseService {
         .snapshots();
   }
 
+  //Attnadnce session
   Future<String> createAttendanceSession({
     required String classId,
     required String className,
@@ -69,13 +85,21 @@ class FirebaseService {
       "endTime": null,
       "status": "active",
       "createdAt": FieldValue.serverTimestamp(),
-      "teacherBtName": "SMART_ATTEND_$sessionCode",
+      "presentCount":0
     });
 
     return sessionCode;
   }
 
-  Future<String?> getSubjectCode(String? classId, String? subjectId) async {
+  Future<void>endSession(String?sessionId){
+    return FirebaseFirestore.instance
+        .collection("attendance_sessions")
+        .doc(sessionId)
+        .update({"status": "closed", "endTime": FieldValue.serverTimestamp()});
+  }
+
+  //subject code for session code
+  Future<String?> getSubjectCode(String?classId, String?subjectId) async {
     final doc = await FirebaseFirestore.instance
         .collection("classes")
         .doc(classId)
@@ -86,25 +110,18 @@ class FirebaseService {
     if (doc.exists) {
       return doc.data()?["code"]; // field name = code
     }
-
     return null;
   }
 
-  Future<void> endSession(String? sessionId) {
+  //student details
+  Stream<QuerySnapshot> getStudents(String className) {
     return FirebaseFirestore.instance
-        .collection("attendance_sessions")
-        .doc(sessionId)
-        .update({"status": "closed", "endTime": FieldValue.serverTimestamp()});
-  }
-
-  Stream<QuerySnapshot> getStudents(String? className) {
-    return firestore
-        .collection("students")
-        .where("className", isEqualTo: className)
+        .collection('students')
+        .where('className', isEqualTo: className.toLowerCase())
         .snapshots();
   }
 
-  /// 🔵 Save or update attendance
+  //Save or update attendance
   Future<void> saveAttendance({
     required String sessionId,
     required String className,
@@ -114,18 +131,32 @@ class FirebaseService {
     required Map<String, bool> attendanceMap,
     required List students,
   }) async {
-    final sessionRef = firestore
-        .collection("attendance_records")
-        .doc(sessionId);
-    // create/update session doc
-    await sessionRef.set({
-      "class": className,
-      "subject": subject,
-      "sessiontype": sessionType,
-      "date": date.toIso8601String(),
-      "createdAt": FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+
+    final sessionRef =
+    firestore.collection("attendance_records").doc(sessionId);
+
+    final sessionDoc = await sessionRef.get();
+    final uid = FirebaseAuth.instance.currentUser!.uid;
+    if (!sessionDoc.exists) {
+      await sessionRef.set({
+        "teacherId": uid,
+        "class": className,
+        "subject": subject,
+        "sessiontype": sessionType,
+        "date": date, // store as Timestamp (BEST)
+        "createdAt": FieldValue.serverTimestamp(),
+      });
+    } else {
+      /// If session exists → only update fields (NOT createdAt)
+      await sessionRef.update({
+        "class": className,
+        "subject": subject,
+        "sessiontype": sessionType,
+        "date": date, // update date if changed
+      });
+    }
     final batch = firestore.batch();
+
     for (var student in students) {
       final studentId = student.id;
       final present = attendanceMap[studentId] ?? false;
@@ -134,7 +165,7 @@ class FirebaseService {
 
       batch.set(docRef, {
         "name": student["name"],
-        "rollNo": student["rollNo"],
+        "seatNo": student["seatNo"],
         "present": present,
         "markedAt": FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
@@ -143,22 +174,7 @@ class FirebaseService {
     await batch.commit();
   }
 
-  Future<Map<String, bool>> loadAttendance(String sessionId) async {
-    final snap = await firestore
-        .collection("attendance_records")
-        .doc(sessionId)
-        .collection("students")
-        .get();
-
-    Map<String, bool> map = {};
-
-    for (var doc in snap.docs) {
-      map[doc.id] = doc["present"] ?? false;
-    }
-
-    return map;
-  }
-
+  //session history
   Stream<QuerySnapshot> getSessionHistory() {
     return firestore
         .collection("attendance_records")
@@ -166,40 +182,98 @@ class FirebaseService {
         .snapshots();
   }
 
-  Future<Map<String, Map<String, int>>> getSubjectTypeAttendanceStats(
-    String studentId,
-  ) async {
-    final snap = await firestore.collection("attendance_records").get();
+// Future<Map<String, bool>> loadAttendance(String sessionId) async {
+  //   final snap = await firestore
+  //       .collection("attendance_records")
+  //       .doc(sessionId)
+  //       .collection("students")
+  //       .get();
+  //
+  //   Map<String, bool> map = {};
+  //
+  //   for (var doc in snap.docs) {
+  //     map[doc.id] = doc["present"] ?? false;
+  //   }
+  //
+  //   return map;
+  // }
 
-    Map<String, int> total = {};
-    Map<String, int> present = {};
+  //stats
+  Future<int> getTodaySessionCount() async {
 
-    for (var session in snap.docs) {
-      final subject = session["subject"];
-      final type = session["sessiontype"]; // Lecture / Practical / Tutorial
+    final uid = FirebaseAuth.instance.currentUser!.uid;
 
-      final key = "$subject | $type";
+    DateTime now = DateTime.now();
+    DateTime startOfDay = DateTime(now.year, now.month, now.day);
+    DateTime endOfDay = startOfDay.add(const Duration(days: 1));
 
-      final studentDoc = await session.reference
-          .collection("students")
-          .doc(studentId)
+    final snapshot = await FirebaseFirestore.instance
+        .collection('attendance_sessions')   // ⭐ your collection
+        .where('teacherId', isEqualTo: uid)  // current teacher
+        .where('startTime', isGreaterThanOrEqualTo: startOfDay)
+        .where('startTime', isLessThan: endOfDay)
+        .get();
+
+    return snapshot.docs.length;
+  }
+
+  Future<int> getTotalPresentToday() async {
+    final uid = FirebaseAuth.instance.currentUser!.uid;
+
+    DateTime now = DateTime.now();
+    DateTime startOfDay = DateTime(now.year, now.month, now.day);
+    DateTime endOfDay = startOfDay.add(const Duration(days: 1));
+
+    int totalPresent = 0;
+
+    /// Get only today's sessions of THIS teacher
+    final sessionsSnapshot = await FirebaseFirestore.instance
+        .collection('attendance_records')
+        .where('teacherId', isEqualTo: uid)   // ⭐ filter teacher
+        .where('createdAt', isGreaterThanOrEqualTo: startOfDay)
+        .where('createdAt', isLessThan: endOfDay)
+        .get();
+
+    /// Loop through sessions
+    for (var session in sessionsSnapshot.docs) {
+      final studentsSnapshot = await session.reference
+          .collection('students')
+          .where('present', isEqualTo: true)
           .get();
 
-      if (!studentDoc.exists) continue;
-
-      total[key] = (total[key] ?? 0) + 1;
-
-      if (studentDoc["present"] == true) {
-        present[key] = (present[key] ?? 0) + 1;
-      }
+      totalPresent += studentsSnapshot.docs.length;
     }
 
-    Map<String, Map<String, int>> result = {};
+    return totalPresent;
+  }
 
-    total.forEach((key, t) {
-      result[key] = {"total": t, "present": present[key] ?? 0};
-    });
+  Future<int> getTotalAbsentToday() async {
+    final uid = FirebaseAuth.instance.currentUser!.uid;
 
-    return result;
+    DateTime now = DateTime.now();
+    DateTime startOfDay = DateTime(now.year, now.month, now.day);
+    DateTime endOfDay = startOfDay.add(const Duration(days: 1));
+
+    int totalAbsent = 0;
+
+    /// Get only today's sessions of THIS teacher
+    final sessionsSnapshot = await FirebaseFirestore.instance
+        .collection('attendance_records')
+        .where('teacherId', isEqualTo: uid)   // ⭐ filter teacher
+        .where('createdAt', isGreaterThanOrEqualTo: startOfDay)
+        .where('createdAt', isLessThan: endOfDay)
+        .get();
+
+    /// Loop through sessions
+    for (var session in sessionsSnapshot.docs) {
+      final studentsSnapshot = await session.reference
+          .collection('students')
+          .where('present', isEqualTo: false)
+          .get();
+
+      totalAbsent += studentsSnapshot.docs.length;
+    }
+
+    return totalAbsent;
   }
 }

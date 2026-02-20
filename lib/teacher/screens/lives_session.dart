@@ -34,6 +34,7 @@ class _LivesSessionState extends State<LivesSession> {
   Duration remaining=Duration.zero;
   Map<String, bool> attendanceMap = {};
   final FirebaseServices=FirebaseService();
+  List presentStudents=[];
   List studentsList = [];
 
   @override
@@ -90,6 +91,9 @@ void initState() {
     setState(() {});
   }
 
+
+
+
 void _startCountdown() {
   _timer?.cancel();
   _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
@@ -98,10 +102,7 @@ void _startCountdown() {
 
     if (diff.isNegative || diff.inSeconds == 0) {
       timer.cancel();
-
-      /// 🔴 STOP BLE
       TeacherBleService.stopBleSession();
-
       setState(() {
         remaining = Duration.zero;
       });
@@ -109,17 +110,18 @@ void _startCountdown() {
     }
 
     setState(() {
-      remaining = diff;}
-    );
+      remaining = diff;
+    });
   });
 }
 
+@override
+void dispose() {
+  _timer?.cancel();
+  TeacherBleService.stopBleSession();
+  super.dispose();
+}
 
-  @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
-  }
 
   String formatDuration(Duration d) {
     final minutes = d.inMinutes.remainder(60).toString().padLeft(2, '0');
@@ -291,7 +293,7 @@ void _startCountdown() {
                                   style: Theme.of(context).textTheme.titleSmall,
                                 ),
                                 subtitle: Text(
-                                  "Roll No : ${student["rollNo"]}",
+                                  "Seat No : ${student["seatNo"]}",
                                   style: TextStyle(fontWeight: FontWeight.w500),
                                 ),
                                 trailing: ElevatedButton(
