@@ -40,6 +40,8 @@ class _StudentScanState extends State<StudentScan> with WidgetsBindingObserver {
   String searchQuery = "";
   Set<String> markedSessions = {};
 
+  Set<String> expiredHandled = {};
+
   @override
   void initState() {
     super.initState();
@@ -245,9 +247,21 @@ class _StudentScanState extends State<StudentScan> with WidgetsBindingObserver {
     if (h == null || m == null) return const SizedBox();
 
     final now = DateTime.now();
-    final endTime = DateTime(now.year, now.month, now.day, h, m);
+    final endTime = DateTime(now.year, now.month, now.day, h, m + 1);
     final remaining = endTime.difference(now);
     final expired = remaining.inSeconds <= 0;
+
+    if (expired && !expiredHandled.contains(session.sessionId)) {
+      expiredHandled.add(session.sessionId);
+
+      Future.delayed(const Duration(seconds: 15), () {
+        if (!mounted) return;
+
+        setState(() {
+          nearbySessions.removeWhere((s) => s.sessionId == session.sessionId);
+        });
+      });
+    }
 
     return Container(
       width: double.infinity,
@@ -308,7 +322,7 @@ class _StudentScanState extends State<StudentScan> with WidgetsBindingObserver {
                       );
 
                       showSnack(
-                        success ? "Attendance marked ✅" : "Attendance failed ❌",
+                        success ? "Attendance marked ✅ And Saved Locally!" : "Attendance failed ❌",
                       );
 
                       if (success) {
@@ -329,7 +343,6 @@ class _StudentScanState extends State<StudentScan> with WidgetsBindingObserver {
                         await saveOfflineSession(
                           "${session.sessionId} | $time",
                         );
-                        showSnack("Attendance saved locally offline.");
                       }
                     },
 
@@ -647,11 +660,12 @@ class _StudentScanState extends State<StudentScan> with WidgetsBindingObserver {
                     ),
                     IconButton(
                       onPressed: () async {
-                        if (!isBtOn)
-                          {showSnack(
+                        if (!isBtOn) {
+                          showSnack(
                             "Please turn ON Bluetooth . . . ! ! ",
                             color: Colors.red,
-                          );}
+                          );
+                        }
                         if (!isLocationOn || !isLocationPermissionGranted) {
                           showSnack(
                             "Turn ON Location / Grant Permission . . . ! ! ",
@@ -663,7 +677,7 @@ class _StudentScanState extends State<StudentScan> with WidgetsBindingObserver {
                           return;
                         }
                         ;
-                        print("-----------------------------------------------------------------------------------------------------------------------"+rollNo);
+
                         startLiveScan();
                       },
 

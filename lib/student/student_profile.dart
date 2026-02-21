@@ -120,6 +120,27 @@ class _StudentProfileState extends State<StudentProfile> {
     );
   }
 
+  Future<bool?> _showDialog(String title, String content, String a) async{
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title),
+        content: Text(content),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text("Cancel"),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(a),
+          ),
+        ],
+        ),
+    );
+    return confirm;
+  }
+
   @override
   Widget build(BuildContext context) {
     return SafeArea(
@@ -149,7 +170,16 @@ class _StudentProfileState extends State<StudentProfile> {
             SizedBox(height: 50),
             GestureDetector(
               onTap: () async {
-                  pickProfilePhoto();
+                  if (photoPath != null){
+                    final confirm = await _showDialog("Change photo?", "Do you want to change your profile photo?", "Change");
+                  if (confirm == true) {
+                    pickProfilePhoto();
+                  } else {
+                    null;
+                  }
+                  } else {
+                    pickProfilePhoto();
+                  }
                 ;
               },
 
@@ -175,25 +205,7 @@ class _StudentProfileState extends State<StudentProfile> {
                     child: IconButton(
                       onPressed: () async{
                         if (photoPath != null) {
-                          final confirm = await showDialog<bool>(
-                    context: context,
-                    builder: (ctx) => AlertDialog(
-                      title: const Text("Change photo?"),
-                      content: const Text(
-                        "Do you want to change/remove your profile photo?",
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(ctx, false),
-                          child: const Text("Cancel"),
-                        ),
-                        TextButton(
-                          onPressed: () => Navigator.pop(ctx, true),
-                          child: const Text("Remove"),
-                        ),
-                      ],
-                    ),
-                  );
+                          final confirm = await _showDialog("Remove photo?", "Do you want to remove your profile photo?", "Remove");
                   if (confirm == true) {
                     removeProfilePhoto();
                   } else {
@@ -252,7 +264,12 @@ class _StudentProfileState extends State<StudentProfile> {
             ),
             SizedBox(height: 30),
             ElevatedButton(
-              onPressed: logout,
+              onPressed: () async {
+                final confirm = await _showDialog("Logout?", "Are you sure you want to logout?", "Logout");
+                if (confirm == true) {
+                  logout();
+                }
+              },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.red,
                 foregroundColor: Colors.white,

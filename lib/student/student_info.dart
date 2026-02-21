@@ -29,7 +29,7 @@ Future<void> saveStudentInfo(String name, String studentId) async {
     );
   }
 
-  submit(String name, String studentId) async{
+  void submit(String name, String studentId) async{
     if(name.isEmpty || studentId.isEmpty || name.trim().isEmpty || studentId.trim().isEmpty){
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Please fill all the details", style: TextStyle(color: Colors.red),))
@@ -48,7 +48,15 @@ Future<void> saveStudentInfo(String name, String studentId) async {
   if (!doc.exists) {
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("No student found with the given seat number", style: TextStyle(color: Colors.red),))
+      SnackBar(content: Text("No student found with the given student ID", style: TextStyle(color: Colors.red),))
+    );
+    return;
+  }
+
+  if (doc.data()!["name"].toString().toLowerCase() != name.text.trim().toLowerCase()) {
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("The name does not match the student ID", style: TextStyle(color: Colors.red),))
     );
     return;
   }
@@ -78,20 +86,20 @@ Future<void> saveStudentInfo(String name, String studentId) async {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       body: Stack(
       children: [
         Container(
           height: double.maxFinite,
           child: 
         SafeArea(
-        child: Center(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(24.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              SizedBox(height: 10),
+              SizedBox(height: 60),
               Icon(Icons.school_rounded,
                     size: 80,
                   color: Theme.of(context).colorScheme.primary,
@@ -120,7 +128,7 @@ Future<void> saveStudentInfo(String name, String studentId) async {
                   controller: name,
                   decoration: InputDecoration(
                     labelText: "Name",
-                    hintText: "Enter your name",
+                    hintText: "Enter your full name",
                     prefixIcon: Icon(Icons.person_2_rounded),
                     border: OutlineInputBorder(
                       borderSide:BorderSide(color: Colors.grey) ,
@@ -134,8 +142,8 @@ Future<void> saveStudentInfo(String name, String studentId) async {
                 TextField(
                   controller: studentId,
                   decoration: InputDecoration(
-                    labelText: "Seat Number",
-                    hintText: "Enter your seat number",
+                    labelText: "Student ID",
+                    hintText: "Enter your student ID",
                     prefixIcon: Icon(Icons.badge_rounded),
                     border: OutlineInputBorder(
                       borderSide:BorderSide(color: Colors.grey) ,
@@ -148,7 +156,6 @@ Future<void> saveStudentInfo(String name, String studentId) async {
             ],
           )
         ),
-      ),
       ),
         ),
         Positioned(
