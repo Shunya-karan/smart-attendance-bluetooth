@@ -79,32 +79,6 @@ class StudentFirebaseService {
     return ((present / total) * 100).round();
   }
 
-  Future<Map<String, int>> getSubjectwiseAttendance(String rollNo) async {
-    final snap = await firestore.collection("attendance_records").get();
-    Map<String, List<bool>> subjectMap = {};
-
-    for (var session in snap.docs) {
-      final doc = await session.reference
-          .collection("students")
-          .doc(rollNo)
-          .get();
-      if (doc.exists) {
-        final subj = session["subject"] ?? "Unknown";
-        subjectMap.putIfAbsent(subj, () => []);
-        subjectMap[subj]!.add(doc["present"] ?? false);
-      }
-    }
-
-    Map<String, int> subjectPerc = {};
-    subjectMap.forEach((key, value) {
-      final perc = ((value.where((e) => e).length / value.length) * 100)
-          .round();
-      subjectPerc[key] = perc;
-    });
-
-    return subjectPerc;
-  }
-
   /// 🔹 Subject-wise attendance percentage (NO type)
   Future<Map<String, int>> getSubjectWiseAttendance(String studentId, String classId) async {
   final snap = await firestore.collection("attendance_records").get();
@@ -170,7 +144,7 @@ class StudentFirebaseService {
 
       final studentDoc = await session.reference
           .collection("students")
-          .doc(studentId)
+          .doc(studentId.toString().trim())
           .get();
 
       if (!studentDoc.exists) continue;
@@ -181,6 +155,8 @@ class StudentFirebaseService {
         present[key] = (present[key] ?? 0) + 1;
       }
     }
+
+    
 
     Map<String, Map<String, int>> result = {};
 

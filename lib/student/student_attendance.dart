@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:percent_indicator/percent_indicator.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/firebase_student.dart';
 
 class StudentAttendance extends StatefulWidget {
   final String studentId;
+  final VoidCallback onBack;
 
-  const StudentAttendance({super.key, required this.studentId});
+  const StudentAttendance({super.key, required this.studentId, required this.onBack});
 
   @override
   State<StudentAttendance> createState() => _StudentAttendanceState();
@@ -47,12 +49,13 @@ class _StudentAttendanceState extends State<StudentAttendance> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               child: Row(
+                mainAxisAlignment: MainAxisAlignment.start,
                 children: [
                   IconButton(
                     icon: const Icon(Icons.arrow_back),
                     onPressed: () => Navigator.pop(context),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Text(
                       "Attendance",
@@ -104,7 +107,7 @@ class _StudentAttendanceState extends State<StudentAttendance> {
                     padding: const EdgeInsets.all(12),
                     itemCount: records.length,
                     itemBuilder: (context, index) {
-                      final date = DateTime.parse(records[index]["date"]);
+                      final date = (records[index]["date"] as Timestamp).toDate();
                       final present = records[index]["present"] as bool;
 
                       return Card(
@@ -270,26 +273,26 @@ class _StudentAttendanceState extends State<StudentAttendance> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                vertical: 8.0,
-                horizontal: 16,
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    "View Attendance",
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
+           
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      IconButton(
+                        onPressed: widget.onBack,
+                        icon: const Icon(Icons.arrow_back_ios_new),
+                      ),
+                      const SizedBox(width: 10),
+                      const Text(
+                        "Veiw Attendance",
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const Spacer(),
+                    ],
                   ),
-                ],
-              ),
-            ),
-
+                
             const SizedBox(height: 15),
 
             Container(
@@ -334,23 +337,47 @@ class _StudentAttendanceState extends State<StudentAttendance> {
             FutureBuilder<Map<String, Map<String, int>>>(
               future: service.getSubjectTypeAttendanceStats(widget.studentId),
               builder: (context, snapshot) {
-                final data = snapshot.data!;
-
-                if (data.isEmpty) {
+                // 1️⃣ Loading state
+                if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Padding(
-                    padding: EdgeInsets.all(16),
-                    child: Text("No attendance found"),
+                    padding: EdgeInsets.all(20),
+                    child: Center(child: CircularProgressIndicator()),
                   );
                 }
+
+                // 2️⃣ Error state
+                if (snapshot.hasError) {
+                  return const Padding(
+                    padding: EdgeInsets.all(20),
+                    child: Text("Something went wrong"),
+                  );
+                }
+
+                // 3️⃣ No data / null / empty
+                if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                  return const Padding(
+                    padding: EdgeInsets.all(20),
+                    child: Text(
+                      "No attendance found",
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                  );
+                }
+
+                final data = snapshot.data!;
+
+                // 4️⃣ Search filter
                 final filteredEntries = data.entries.where((e) {
-                  final key = e.key.toLowerCase();
-                  return key.contains(searchQuery.toLowerCase());
+                  return e.key.toLowerCase().contains(
+                    searchQuery.toLowerCase(),
+                  );
                 }).toList();
 
+                // 5️⃣ Search result empty
                 if (filteredEntries.isEmpty) {
-                  return const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(30),
+                  return const Padding(
+                    padding: EdgeInsets.all(30),
+                    child: Center(
                       child: Text(
                         "No matching records found",
                         style: TextStyle(color: Colors.grey),
@@ -359,17 +386,18 @@ class _StudentAttendanceState extends State<StudentAttendance> {
                   );
                 }
 
+                // 6️⃣ Render cards
                 return Column(
                   children: filteredEntries.map((e) {
                     final parts = e.key.split(" | ");
                     final subject = parts[0];
-                    final type = parts[1];
+                    final type = parts.length > 1 ? parts[1] : "";
 
                     return buildAttendanceCard(
                       subject: subject,
                       type: type,
-                      total: e.value["total"]!,
-                      present: e.value["present"]!,
+                      total: e.value["total"] ?? 0,
+                      present: e.value["present"] ?? 0,
                     );
                   }).toList(),
                 );

@@ -26,6 +26,20 @@ class StudentHome extends StatefulWidget {
 
   @override
   State<StudentHome> createState() => _StudentHomeState();
+  static String seatNumber = "";
+
+  static Future<(String?, String?, String?, String?, String?, String?)>
+  getStudentInfo() async {
+    final prefs = await SharedPreferences.getInstance();
+    final n1 = prefs.getString("name");
+    final n2 = prefs.getString("studentId");
+    final c2 = prefs.getString("classId");
+    final c1 = prefs.getString("class");
+    final r = prefs.getString("rollNo");
+    final p = prefs.getString("photoPath");
+
+    return (n1, n2, c1, c2, r, p);
+  }
 }
 
 class _StudentHomeState extends State<StudentHome> {
@@ -39,7 +53,6 @@ class _StudentHomeState extends State<StudentHome> {
   int screenWidth = 0;
   bool showOfflineOverride = false;
   String? photo;
-
 
   @override
   void initState() {
@@ -66,17 +79,8 @@ class _StudentHomeState extends State<StudentHome> {
     });
   }
 
-  static Future<(String?, String?, String?)> _getStudentInfo() async {
-    final prefs = await SharedPreferences.getInstance();
-    final n1 = prefs.getString("name");
-    final n2 = prefs.getString("seatNumber");
-    final p = prefs.getString("photoPath");
-
-    return (n1, n2, p);
-  }
-
   void _checkStudentInfo() async {
-    final (n1, n2, p) = await _getStudentInfo();
+    final (n1, n2, c1, c2, r, p) = await StudentHome.getStudentInfo();
 
     if (n1 == null || n2 == null) {
       if (!mounted) return;
@@ -89,11 +93,11 @@ class _StudentHomeState extends State<StudentHome> {
       setState(() {
         name = n1;
         seatNumber = n2;
+        StudentHome.seatNumber = n2;
         photo = p;
       });
     }
   }
-
 
   Future<void> clearOfflineIfDateChanged() async {
     final prefs = await SharedPreferences.getInstance();
@@ -387,7 +391,11 @@ class _StudentHomeState extends State<StudentHome> {
     return FutureBuilder<Map<String, int>>(
       future: service.getSubjectWiseAttendance(seatNumber, classId),
       builder: (context, snapshot) {
-        final data = snapshot.data ?? {"Null" : 0};
+        if (!snapshot.hasData) {
+          return buildChart(0, "No Data");
+        }
+
+        final data = snapshot.data ?? {"Null": 0};
 
         final maxEntry = data.entries.reduce(
           (a, b) => a.value >= b.value ? a : b,
@@ -396,10 +404,11 @@ class _StudentHomeState extends State<StudentHome> {
           (a, b) => a.value <= b.value ? a : b,
         );
 
-        if (m == "max")
+        if (m == "max") {
           return buildChart(maxEntry.value, maxEntry.key);
-        else
+        } else {
           return buildChart(minEntry.value, minEntry.key);
+        }
       },
     );
   }
@@ -407,33 +416,33 @@ class _StudentHomeState extends State<StudentHome> {
   @override
   Widget build(BuildContext context) {
     return SafeArea(
-      child: SizedBox(
-        height: MediaQuery.of(context).size.height,
-        child: Stack(
-          children: [
-            SingleChildScrollView(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      GestureDetector(
-                        onTap: widget.onProfile,
-                        child: CircleAvatar(
-                          radius: 30,
-                          backgroundImage: photo != null
-                              ? FileImage(File(photo!))
-                              : AssetImage('assets/profile.png'),
-                        ),
+      child: SizedBox.expand(
+      child: Stack(
+        children: [
+          SingleChildScrollView(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    GestureDetector(
+                      onTap: widget.onProfile,
+                      child: CircleAvatar(
+                        radius: 30,
+                        backgroundImage: photo != null
+                            ? FileImage(File(photo!))
+                            : AssetImage('assets/profile.png'),
                       ),
+                    ),
 
-                      const SizedBox(width: 15),
+                    const SizedBox(width: 15),
 
-                      Column(
-                        mainAxisSize: MainAxisSize.min,
+                    Flexible(
+                      fit: FlexFit.loose,
+                      child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
@@ -445,6 +454,7 @@ class _StudentHomeState extends State<StudentHome> {
                               letterSpacing: -0.5,
                             ),
                             overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
                           ),
                           Text(
                             seatNumber,
@@ -455,268 +465,282 @@ class _StudentHomeState extends State<StudentHome> {
                           ),
                         ],
                       ),
-                      const Spacer(),
-                      Column(
-                        children: [
-                          SizedBox(height: 10),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.grey.withOpacity(0.3),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Text(
-                              "VES",
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black,
-                              ),
-                            ),
-                          ),
-                          SizedBox(height: 5),
-                          Row(
-                            children: [
-                              Icon(
-                                net
-                                    ? Icons.wifi_rounded
-                                    : Icons.wifi_off_rounded,
-                                size: 15,
-                                color: net ? Colors.green : Colors.red,
-                              ),
-                              SizedBox(width: 5),
-                              Text(
-                                net ? "Online" : "Offline",
-                                style: TextStyle(
-                                  color: net ? Colors.green : Colors.red,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                      SizedBox(width: 10),
-                    ],
-                  ),
-
-                  Divider(color: Colors.grey, thickness: 1),
-                  const SizedBox(height: 10),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        "Attendance",
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black,
-                        ),
-                      ),
-
-                      InkWell(
-                        borderRadius: BorderRadius.circular(20),
-                        onTap: () {
-                          AppSettings.openAppSettings(
-                            type: AppSettingsType.bluetooth,
-                          );
-                        },
-                        child: Container(
+                    ),
+                    const Spacer(),
+                    Column(
+                      children: [
+                        SizedBox(height: 10),
+                        Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 12,
                             vertical: 6,
                           ),
                           decoration: BoxDecoration(
-                            color: isBtOn
-                                ? Colors.blue.shade50
-                                : Colors.red.shade50,
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: isBtOn ? Colors.blue : Colors.red,
-                              width: 1,
+                            color: Colors.grey.withOpacity(0.3),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            "VES",
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black,
                             ),
                           ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.bluetooth,
-                                size: 16,
+                        ),
+                        SizedBox(height: 5),
+                        Row(
+                          children: [
+                            Icon(
+                              net ? Icons.wifi_rounded : Icons.wifi_off_rounded,
+                              size: 15,
+                              color: net ? Colors.green : Colors.red,
+                            ),
+                            SizedBox(width: 5),
+                            Text(
+                              net ? "Online" : "Offline",
+                              style: TextStyle(
+                                color: net ? Colors.green : Colors.red,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    SizedBox(width: 10),
+                  ],
+                ),
+
+                Divider(color: Colors.grey, thickness: 1),
+                const SizedBox(height: 10),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      "Attendance",
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                      ),
+                    ),
+
+                    InkWell(
+                      borderRadius: BorderRadius.circular(20),
+                      onTap: () {
+                        AppSettings.openAppSettings(
+                          type: AppSettingsType.bluetooth,
+                        );
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: isBtOn
+                              ? Colors.blue.shade50
+                              : Colors.red.shade50,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: isBtOn ? Colors.blue : Colors.red,
+                            width: 1,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.bluetooth,
+                              size: 16,
+                              color: isBtOn ? Colors.blue : Colors.red,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              isBtOn ? "Bluetooth ON" : "Bluetooth OFF",
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
                                 color: isBtOn ? Colors.blue : Colors.red,
                               ),
-                              const SizedBox(width: 6),
-                              Text(
-                                isBtOn ? "Bluetooth ON" : "Bluetooth OFF",
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: isBtOn ? Colors.blue : Colors.red,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 20),
+                todayCard(),
+                SizedBox(height: 20),
+                Container(
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.blueAccent, width: 0.5),
+                    borderRadius: BorderRadius.circular(12),
+                    color: const Color.fromARGB(255, 236, 250, 255),
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.start,
+                        children: [
+                          SizedBox(width: 15),
+                          Icon(Icons.fact_check, size: 20, color: Colors.green),
+                          SizedBox(width: 10),
+                          Text(
+                            "Attendance",
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black,
+                            ),
+                          ),
+                          Spacer(),
+                          TextButton(
+                            onPressed: widget.onAttendance,
+                            child: Text(
+                              "View All",
+                              style: TextStyle(color: Colors.blue),
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 10),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            SizedBox(
+                              width: 110,
+                              height: 130,
+                              child: attendanceChart("Overall", null, null),
+                            ),
+                            SizedBox(width: 20),
+                            SizedBox(
+                              width: 110,
+                              height: 130,
+                              child: attendanceChart(
+                                "This Month",
+                                DateTime(
+                                  DateTime.now().year,
+                                  DateTime.now().month,
+                                  1,
                                 ),
+                                null,
+                              ),
+                            ),
+                            SizedBox(width: 20),
+                            SizedBox(
+                              width: 110,
+                              height: 130,
+                              child: attendanceChart(
+                                "This Week",
+                                DateTime.now().subtract(
+                                  Duration(days: DateTime.now().weekday - 1),
+                                ),
+                                null,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      SizedBox(width: 20),
+                      Divider(
+                        color: Colors.grey,
+                        thickness: 1,
+                        indent: 10,
+                        endIndent: 10,
+                      ),
+                      SizedBox(height: 10),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Column(
+                            children: [
+                              const Text("Max"),
+                              SizedBox(height: 7),
+                              SizedBox(
+                                height: 130,
+                                width: 110,
+                              child: minANDmax("classId1", "max"),
                               ),
                             ],
                           ),
-                        ),
+                          SizedBox(width: 40),
+                          Column(
+                            children: [
+                              const Text("Min"),
+                              SizedBox(height: 7),
+                              SizedBox(
+                                height: 130,
+                                width: 110,
+                                child: minANDmax("classId1", "min"),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 10),
+                    ],
+                  ),
+                ),
+
+                SizedBox(height: 100),
+              ],
+            ),
+          ),
+          Positioned(
+            bottom: 16,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: SizedBox(
+                width: 250,
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF2193B0), Color(0xFF6DD5ED)],
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                    ),
+
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Colors.black26,
+                        blurRadius: 8,
+                        offset: Offset(0, 4),
                       ),
                     ],
                   ),
-                  SizedBox(height: 20),
-                  todayCard(),
-                  SizedBox(height: 20),
-                  Container(
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.blueAccent, width: 0.5),
-                      borderRadius: BorderRadius.circular(12),
-                      color: const Color.fromARGB(255, 236, 250, 255),
-                    ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.start,
-                          children: [
-                            SizedBox(width: 15),
-                            Icon(
-                              Icons.fact_check,
-                              size: 20,
-                              color: Colors.green,
-                            ),
-                            SizedBox(width: 10),
-                            Text(
-                              "Attendance",
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black,
-                              ),
-                            ),
-                            Spacer(),
-                            TextButton(
-                              onPressed: widget.onAttendance,
-                              child: Text(
-                                "View All",
-                                style: TextStyle(color: Colors.blue),
-                              ),
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: 10),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            attendanceChart(
-                              "Overall",
-                              null,
-                              null,
-                            ), // no filter = all time
-                            SizedBox(width: 20),
-                            attendanceChart(
-                              "This Month",
-                              DateTime(
-                                DateTime.now().year,
-                                DateTime.now().month,
-                                1,
-                              ),
-                              null,
-                            ),
-                            SizedBox(width: 20),
-                            attendanceChart(
-                              "This Week",
-                              DateTime.now().subtract(
-                                Duration(days: DateTime.now().weekday - 1),
-                              ),
-                              null,
-                            ),
-                          ],
-                        ),
-                        SizedBox(width: 20),
-                        Divider(
-                          color: Colors.grey,
-                          thickness: 1,
-                          indent: 10,
-                          endIndent: 10,
-                        ),
-                        SizedBox(height: 10),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Column(
-                              children: [
-                                const Text("Max"),
-                                SizedBox(height: 7),
-                                minANDmax("classId1", "max"),
-                              ],
-                            ),
-                            SizedBox(width: 40),
-                            Column(
-                              children: [
-                                const Text("Min"),
-                                SizedBox(height: 7),
-                                minANDmax("classId1", "min"),
-                              ],
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: 10),
-                      ],
-                    ),
-                  ),
-                  SizedBox(height: 100),
-                ],
-              ),
-            ),
-            Positioned(
-              bottom: 16,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: SizedBox(
-                  width: 250,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF2193B0), Color(0xFF6DD5ED)],
-                        begin: Alignment.centerLeft,
-                        end: Alignment.centerRight,
+                  child: ElevatedButton(
+                    onPressed: widget.onScan,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      shadowColor: Colors.transparent,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
                       ),
-
-                      borderRadius: BorderRadius.circular(14),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Colors.black26,
-                          blurRadius: 8,
-                          offset: Offset(0, 4),
-                        ),
-                      ],
                     ),
-                    child: ElevatedButton(
-                      onPressed: widget.onScan,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.transparent,
-                        shadowColor: Colors.transparent,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                      ),
-                      child: const Text(
-                        "Scan Session",
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                          letterSpacing: 0.5,
-                        ),
+                    child: const Text(
+                      "Scan Session",
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        letterSpacing: 0.5,
                       ),
                     ),
                   ),
                 ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
+      ),
       ),
     );
   }

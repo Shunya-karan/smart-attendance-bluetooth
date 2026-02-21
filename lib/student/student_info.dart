@@ -36,7 +36,7 @@ Future<void> saveStudentInfo(String name, String studentId) async {
       );
       return;
     }
-    await saveStudentInfo(name, studentId);
+    await fetchAndSaveStudent(context);
   }
 
   Future<void> fetchAndSaveStudent(BuildContext context) async {
@@ -47,9 +47,8 @@ Future<void> saveStudentInfo(String name, String studentId) async {
 
   if (!doc.exists) {
     if (!context.mounted) return;
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => const StudentInfo()),
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("No student found with the given seat number", style: TextStyle(color: Colors.red),))
     );
     return;
   }
@@ -57,10 +56,16 @@ Future<void> saveStudentInfo(String name, String studentId) async {
   final data = doc.data()!;
 
   final prefs = await SharedPreferences.getInstance();
-  await prefs.setString("name", data["name"]);
-  await prefs.setString("studentId", data["studentId"]);
-  await prefs.setString("rollNo", data["rollNo"]);
-  await prefs.setString("class", data["className"]);
+  await prefs.setString("name", data["name"].toString());
+  await prefs.setString("studentId", data["seatNo"].toString());
+  await prefs.setString("rollNo", data["rollNo"].toString());
+  await prefs.setString("class", data["className"].toString());
+  await prefs.setString("classId", data["classId"].toString());
+  await prefs.setBool("Logged_in", true);
+
+  ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("Student information saved successfully", style: TextStyle(color: Colors.green),))
+    );
 
   if (!context.mounted) return;
   Navigator.pushReplacement(
@@ -159,7 +164,7 @@ Future<void> saveStudentInfo(String name, String studentId) async {
                 ),
               backgroundColor: Theme.of(context).colorScheme.primary
               ),
-            child: Text("Continue", style: TextStyle(fontSize: 16),),
+            child: Text("Continue", style: TextStyle(fontSize: 16, color: Colors.white),),
           ),
         )
         ],

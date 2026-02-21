@@ -29,6 +29,10 @@ class FirebaseService {
           .doc(uid)
           .get();
   }
+  
+  Future<void> logout() async {
+    await FirebaseAuth.instance.signOut();
+  }
 
   //Department list
 Stream<QuerySnapshot> departmentList() {

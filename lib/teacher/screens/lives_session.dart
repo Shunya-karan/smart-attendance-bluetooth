@@ -59,10 +59,10 @@ void initState() {
   TeacherBleService.listenAttendance((data) {
     if (data.isEmpty) return;
 
-    final rollNo = data.trim();
+    final seatNo = data.trim();
 
     for (var student in studentsList) {
-      if (student["rollNo"].toString() == rollNo) {
+      if (student["seatNo"].toString() == seatNo) {
         final studentId = student.id;
 
         if (attendanceMap[studentId] == true) return;

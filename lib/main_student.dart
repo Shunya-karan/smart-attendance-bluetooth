@@ -17,7 +17,7 @@ void main() async {
 Future<bool> hasStudentInfo() async {
   final prefs = await SharedPreferences.getInstance();
   return prefs.getString("name") != null &&
-      prefs.getString("seatNumber") != null;
+      prefs.getString("studentId") != null;
 }
 
 class StudentApp extends StatelessWidget {

@@ -23,9 +23,9 @@ Widget build(BuildContext context) {
           onProfile: () => setState(() => _index = 3),
           onAttendance: () => setState(() => _index = 2),
         ),
-        StudentScan(active: _index == 1? true : false),
-        StudentAttendance(studentId: "24"),
-        StudentProfile(),
+        StudentScan(active: _index == 1? true : false, onBack: () => setState(() => _index = 0)),
+        StudentAttendance(studentId: StudentHome.seatNumber, onBack: () => setState(() => _index = 0)),
+        StudentProfile(onBack: () => setState(() => _index = 0)),
       ],
     ),
     bottomNavigationBar: BottomNavigationBar(

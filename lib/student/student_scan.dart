@@ -10,8 +10,9 @@ import 'package:smart_attendance_bluetooth/student/ble_scan.dart';
 
 class StudentScan extends StatefulWidget {
   final bool active;
+  final VoidCallback onBack;
 
-  const StudentScan({super.key, required this.active});
+  const StudentScan({super.key, required this.active, required this.onBack});
 
   @override
   State<StudentScan> createState() => _StudentScanState();
@@ -121,7 +122,7 @@ class _StudentScanState extends State<StudentScan> with WidgetsBindingObserver {
 
   Future<void> getRoll() async {
     final pref = await SharedPreferences.getInstance();
-    final roll = pref.getString("seatNumber");
+    final roll = pref.getString("studentId");
 
     if (roll != null) {
       setState(() {
@@ -376,7 +377,6 @@ class _StudentScanState extends State<StudentScan> with WidgetsBindingObserver {
             );
           }).toList();
 
-          
     return SafeArea(
       child: Stack(
         children: [
@@ -388,20 +388,25 @@ class _StudentScanState extends State<StudentScan> with WidgetsBindingObserver {
               children: [
                 Padding(
                   padding: const EdgeInsets.symmetric(
-                    vertical: 8.0,
-                    horizontal: 16,
+                    horizontal: 1,
+                    vertical: 1,
                   ),
                   child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text(
+                      IconButton(
+                        onPressed: widget.onBack,
+                        icon: const Icon(Icons.arrow_back_ios_new),
+                      ),
+                      const SizedBox(width: 10),
+                      const Text(
                         "Scan Sessions",
                         style: TextStyle(
-                          fontSize: 24,
+                          fontSize: 22,
                           fontWeight: FontWeight.bold,
-                          color: Colors.black87,
                         ),
                       ),
+                      const Spacer(),
                     ],
                   ),
                 ),
@@ -643,10 +648,10 @@ class _StudentScanState extends State<StudentScan> with WidgetsBindingObserver {
                     IconButton(
                       onPressed: () async {
                         if (!isBtOn)
-                          showSnack(
+                          {showSnack(
                             "Please turn ON Bluetooth . . . ! ! ",
                             color: Colors.red,
-                          );
+                          );}
                         if (!isLocationOn || !isLocationPermissionGranted) {
                           showSnack(
                             "Turn ON Location / Grant Permission . . . ! ! ",
@@ -658,7 +663,7 @@ class _StudentScanState extends State<StudentScan> with WidgetsBindingObserver {
                           return;
                         }
                         ;
-
+                        print("-----------------------------------------------------------------------------------------------------------------------"+rollNo);
                         startLiveScan();
                       },
 
