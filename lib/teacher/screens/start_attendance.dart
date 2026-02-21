@@ -30,15 +30,15 @@ class _StartAttendanceState extends State<StartAttendance> {
   String?sessionType;
   String?sessionCode;
   final FirebaseServices=FirebaseService();
+  bool _isStartingSession = false;
 
 
 
   Future<String> generateSessionCode() async {
     DateTime now = DateTime.now();
     int dayOfYear = now.difference(DateTime(now.year,1,1)).inDays + 1;
-    DateFormat timeFormating=DateFormat("HHmm");
+    DateFormat timeFormating=DateFormat("mmss");
     String futreForematted=timeFormating.format(now.add(Duration(minutes:selectedDuration!)));
-
     String classs = selectedClassName!.replaceAll(" ", "").toUpperCase();
     final subject = await FirebaseServices.getSubjectCode(selectedClassId,selectedSubjectId);
 
@@ -46,8 +46,10 @@ class _StartAttendanceState extends State<StartAttendance> {
     return "${sessionCode}";
   }
 
-
   Future<void> _startSession() async {
+    if(_isStartingSession) return;
+    _isStartingSession=true;
+
     if (selectedClassId == null ||
         selectedSubjectId == null ||
         selectedDuration == null ||
@@ -55,38 +57,12 @@ class _StartAttendanceState extends State<StartAttendance> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Please fill session details")),
       );
+      _isStartingSession=false;
       return;
     }
 
     final code = await generateSessionCode();
-
-    print(code);
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content:Text("Session started $code"
-        )
-    )
-    );
-
-    await FirebaseServices.createAttendanceSession(
-      classId: selectedClassId!,
-      className: selectedClassName!,
-      subjectId: selectedSubjectId!,
-      subjectName: selectedSubjectName!,
-      duration: selectedDuration!,
-      sessionType: sessionType!,
-      teacherId: FirebaseAuth.instance.currentUser!.uid,
-      sessionCode: code,
-    );
-
-    await TeacherBleService.stopBleSession();
-
-
-    /// 🔥 START BLE HERE
-    await TeacherBleService.startBleSession(
-      sessionCode: code,
-    );
-
-    Navigator.pushReplacement(
+    Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => LivesSession(
@@ -100,6 +76,33 @@ class _StartAttendanceState extends State<StartAttendance> {
         ),
       ),
     );
+    // ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+    //     content:Text("Session started $code"
+    //     )
+    // )
+    // );
+    try{
+      await FirebaseServices.createAttendanceSession(
+        classId: selectedClassId!,
+        className: selectedClassName!,
+        subjectId: selectedSubjectId!,
+        subjectName: selectedSubjectName!,
+        duration: selectedDuration!,
+        sessionType: sessionType!,
+        teacherId: FirebaseAuth.instance.currentUser!.uid,
+        sessionCode: code,
+      );
+
+      await TeacherBleService.stopBleSession();
+
+      await TeacherBleService.startBleSession(
+        sessionCode: code,
+      );
+    }catch(e){
+      print("Error starting session $e");
+    }
+    _isStartingSession=false;
+
   }
 
   @override
@@ -360,11 +363,13 @@ class _StartAttendanceState extends State<StartAttendance> {
               ),
               child: Padding(
                 padding: const EdgeInsets.all(18.0),
-                child: ElevatedButton(onPressed:scanReady?_startSession :null,
+                child: ElevatedButton(onPressed:scanReady||_isStartingSession?_startSession :null,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.blue[400],
                     ),
-                    child: Row(
+                    child:_isStartingSession
+                        ?CircularProgressIndicator()
+                        :Row(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [

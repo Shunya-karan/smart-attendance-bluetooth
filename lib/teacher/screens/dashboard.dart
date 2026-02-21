@@ -129,14 +129,13 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                             }
                           ),
                           SizedBox(width: 10),
-
                           FutureBuilder(
                             future: firebaseservices.getTotalPresentToday(),
                             builder: (context, asyncSnapshot) {
                               if(!asyncSnapshot.hasData){
                                 return StatsCard(
                                   heading: "Last Session Present",
-                                  totalCount:asyncSnapshot.data.toString(),
+                                  totalCount:"...",
                                   cardColor: Color.fromRGBO(23, 159, 88, 1.0),
                                   statsIcons: Icons.co_present_outlined,
                                 );

@@ -140,6 +140,7 @@ void dispose() {
             ),
             ElevatedButton(onPressed: (){
               _timer?.cancel();
+              FirebaseServices.endSession(widget.sessionCode);
               setState(() {
                 remaining=Duration(seconds: 0);
                 Navigator.pop(context);

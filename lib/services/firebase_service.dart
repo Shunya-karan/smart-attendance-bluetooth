@@ -84,7 +84,7 @@ class FirebaseService {
       "sessionType": sessionType,
       "teacherId": teacherId,
       "startTime": FieldValue.serverTimestamp(),
-      "endTime": null,
+      "endTime":"" ,
       "status": "active",
       "createdAt": FieldValue.serverTimestamp(),
       "presentCount":0
@@ -136,10 +136,8 @@ class FirebaseService {
     required Map<String, bool> attendanceMap,
     required List students,
   }) async {
-
     final sessionRef =
     firestore.collection("attendance_records").doc(sessionId);
-
     final sessionDoc = await sessionRef.get();
     final uid = FirebaseAuth.instance.currentUser!.uid;
     if (!sessionDoc.exists) {
@@ -152,7 +150,6 @@ class FirebaseService {
         "createdAt": FieldValue.serverTimestamp(),
       });
     } else {
-      /// If session exists → only update fields (NOT createdAt)
       await sessionRef.update({
         "class": className,
         "subject": subject,
@@ -182,27 +179,24 @@ class FirebaseService {
 
   //session history
   Stream<QuerySnapshot> getSessionHistory() {
+    final TeacherId=FirebaseAuth.instance.currentUser!.uid;
     return firestore
         .collection("attendance_records")
+    .where("teacherId",isEqualTo: TeacherId)
         .orderBy("createdAt", descending: true)
         .snapshots();
   }
 
-// Future<Map<String, bool>> loadAttendance(String sessionId) async {
-  //   final snap = await firestore
-  //       .collection("attendance_records")
-  //       .doc(sessionId)
-  //       .collection("students")
-  //       .get();
-  //
-  //   Map<String, bool> map = {};
-  //
-  //   for (var doc in snap.docs) {
-  //     map[doc.id] = doc["present"] ?? false;
-  //   }
-  //
-  //   return map;
-  // }
+  Stream<QuerySnapshot> getLiveSession() {
+    final Teacherid=FirebaseAuth.instance.currentUser!.uid;
+    return firestore
+        .collection("attendance_sessions")
+        .where("teacherId",isEqualTo: Teacherid)
+        .where("status",isEqualTo: "active")
+        .orderBy("createdAt", descending: true)
+        .snapshots();
+  }
+
 
   //stats
   Future<int> getTodaySessionCount() async {

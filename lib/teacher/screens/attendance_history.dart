@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:smart_attendance_bluetooth/services/firebase_service.dart';
 import 'package:smart_attendance_bluetooth/teacher/screens/lives_session.dart';
 import 'package:smart_attendance_bluetooth/teacher/widgets/dateAndtime.dart';
 import 'package:smart_attendance_bluetooth/teacher/widgets/heading&subheading.dart';
@@ -12,6 +13,7 @@ class attendanceHistory extends StatefulWidget {
 }
 
 class _attendanceHistoryState extends State<attendanceHistory> {
+  final firebaseServices=FirebaseService();
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -36,10 +38,7 @@ class _attendanceHistoryState extends State<attendanceHistory> {
 
             Expanded(
               child: StreamBuilder(
-                stream: FirebaseFirestore.instance
-                    .collection("attendance_records")
-                    .orderBy("createdAt", descending: true)
-                    .snapshots(),
+                stream: firebaseServices.getSessionHistory(),
                 builder: (context, snapshot) {
                   if (!snapshot.hasData) {
                     return const Center(child: CircularProgressIndicator());
