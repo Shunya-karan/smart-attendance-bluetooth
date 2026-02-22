@@ -38,43 +38,44 @@ class _LivesSessionState extends State<LivesSession> {
   List studentsList = [];
 
   @override
-  void initState() {
-    super.initState();
-    endTime = widget.startTime.add(
-        Duration(minutes: widget.durationMinutes)
-    );
-    remaining = endTime.difference(DateTime.now());
+void initState() {
+  super.initState();
 
-    if (!widget.isHistory) {
-      _startCountdown();
-      TeacherbleServices();
-    }
+  endTime = widget.startTime.add(
+    Duration(minutes: widget.durationMinutes),
+  );
 
-    if (widget.isHistory) {
-      loadOldAttendance();
-    }
+  remaining = endTime.difference(DateTime.now());
+
+  if (widget.isHistory) {
+    loadOldAttendance();
+  } else {
+    _startCountdown();
+    TeacherbleServices();
   }
+}
 
   void TeacherbleServices() {
-    TeacherBleService.listenAttendance((data) {
-      final parts = data.trim().split('|');
-      final seatNo = parts.last.trim();
+  TeacherBleService.listenAttendance((data) {
+    if (data.isEmpty) return;
 
-      for (var student in studentsList) {
-        if (student["seatNo"].toString() == seatNo) {
-          final studentId = student.id;
+    final seatNo = data.trim();
 
-          if (attendanceMap[studentId] == true) return;
+    for (var student in studentsList) {
+      if (student["seatNo"].toString() == seatNo) {
+        final studentId = student.id;
 
-          setState(() {
-            attendanceMap[studentId] = true;
-          });
+        if (attendanceMap[studentId] == true) return;
 
-          break;
-        }
+        setState(() {
+          attendanceMap[studentId] = true;
+        });
+        break;
       }
-    });
-  }
+    }
+  });
+}
+
 
   Future<void> loadOldAttendance() async {
     final snap = await FirebaseFirestore.instance

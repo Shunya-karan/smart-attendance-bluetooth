@@ -13,12 +13,11 @@ class FirebaseService {
     );
   }
 
-  Future<UserCredential>signupTeacher(String email,String password)async{
-    return await FirebaseAuth.instance.createUserWithEmailAndPassword(email: email, password: password);
-  }
-
-  Future<void> logout() async {
-    await FirebaseAuth.instance.signOut();
+  Future<UserCredential> signupTeacher(String email, String password) async {
+    return await FirebaseAuth.instance.createUserWithEmailAndPassword(
+      email: email,
+      password: password,
+    );
   }
 
 
@@ -30,16 +29,19 @@ class FirebaseService {
           .doc(uid)
           .get();
   }
+  
+  Future<void> logout() async {
+    await FirebaseAuth.instance.signOut();
+  }
 
   //Department list
-  Stream<QuerySnapshot>departmentList(){
-    return  FirebaseFirestore.instance
-        .collection("departments")
-        .where("isActive")
-        .orderBy("name")
-        .snapshots();
-
-  }
+Stream<QuerySnapshot> departmentList() {
+  return FirebaseFirestore.instance
+      .collection("departments")
+      .where("isActive", isEqualTo: true)
+      .orderBy("name")
+      .snapshots();
+}
 
   //all class
   Stream<QuerySnapshot>allClasses(){
@@ -97,10 +99,7 @@ class FirebaseService {
     return FirebaseFirestore.instance
         .collection("attendance_sessions")
         .doc(sessionId)
-        .update({
-      "status":"closed",
-      "endTime":FieldValue.serverTimestamp()
-    });
+        .update({"status": "closed", "endTime": FieldValue.serverTimestamp()});
   }
 
   //subject code for session code
@@ -163,8 +162,7 @@ class FirebaseService {
       final studentId = student.id;
       final present = attendanceMap[studentId] ?? false;
 
-      final docRef =
-      sessionRef.collection("students").doc(studentId);
+      final docRef = sessionRef.collection("students").doc(studentId);
 
       batch.set(docRef, {
         "name": student["name"],

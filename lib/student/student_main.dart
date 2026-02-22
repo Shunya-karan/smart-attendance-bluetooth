@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:smart_attendance_bluetooth/student/student_attendance.dart';
 import 'package:smart_attendance_bluetooth/student/student_home.dart';
 import 'package:smart_attendance_bluetooth/student/student_profile.dart';
 import 'package:smart_attendance_bluetooth/student/student_scan.dart';
@@ -19,11 +20,12 @@ Widget build(BuildContext context) {
       children: [
         StudentHome(
           onScan: () => setState(() => _index = 1),
-          onProfile: () => setState(() => _index = 2),
-          onAttendance: () => setState(() => _index = 3),
+          onProfile: () => setState(() => _index = 3),
+          onAttendance: () => setState(() => _index = 2),
         ),
-        StudentScan(active: _index == 1? true : false),
-        StudentProfile(),
+        StudentScan(active: _index == 1? true : false, onBack: () => setState(() => _index = 0)),
+        StudentAttendance(studentId: StudentHome.seatNumber, onBack: () => setState(() => _index = 0)),
+        StudentProfile(onBack: () => setState(() => _index = 0)),
       ],
     ),
     bottomNavigationBar: BottomNavigationBar(
@@ -39,8 +41,8 @@ Widget build(BuildContext context) {
       items: const [
         BottomNavigationBarItem(icon: Icon(Icons.home_outlined), activeIcon: Icon(Icons.home_rounded), label: "Home"),
         BottomNavigationBarItem(icon: Icon(Icons.class_outlined), activeIcon: Icon(Icons.class_rounded), label: "Session"),
-        BottomNavigationBarItem(icon: Icon(Icons.person_outline), activeIcon: Icon(Icons.person_rounded), label: "Profile"),
         BottomNavigationBarItem(icon: Icon(Icons.fact_check_outlined), activeIcon: Icon(Icons.fact_check_rounded), label: "Attendance"),
+        BottomNavigationBarItem(icon: Icon(Icons.person_outline), activeIcon: Icon(Icons.person_rounded), label: "Profile"),
       ],
     ),
   );
