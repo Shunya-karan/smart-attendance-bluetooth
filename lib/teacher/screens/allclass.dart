@@ -1,6 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:smart_attendance_bluetooth/services/firebase_service.dart';
+import 'package:smart_attendance_bluetooth/services/firebase_teacher.dart';
 import 'package:smart_attendance_bluetooth/teacher/widgets/heading&subheading.dart';
 
 class AllSubjects extends StatefulWidget {

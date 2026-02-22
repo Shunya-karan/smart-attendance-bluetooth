@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:smart_attendance_bluetooth/services/firebase_service.dart';
+import 'package:smart_attendance_bluetooth/services/firebase_teacher.dart';
 import 'package:smart_attendance_bluetooth/teacher/screens/lives_session.dart';
 import 'package:smart_attendance_bluetooth/teacher/widgets/dateAndtime.dart';
 import 'package:smart_attendance_bluetooth/teacher/widgets/heading&subheading.dart';

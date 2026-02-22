@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:smart_attendance_bluetooth/teacher/widgets/heading&subheading.dart';
-import 'package:smart_attendance_bluetooth/services/firebase_service.dart';
+import 'package:smart_attendance_bluetooth/services/firebase_teacher.dart';
 import 'package:smart_attendance_bluetooth/bluetooth_session.dart';
 
 class LivesSession extends StatefulWidget {
@@ -294,7 +294,7 @@ void dispose() {
                                   style: Theme.of(context).textTheme.titleSmall,
                                 ),
                                 subtitle: Text(
-                                  "Seat No : ${student["seatNo"]}",
+                                  "Roll No : ${student["rollNo"]}",
                                   style: TextStyle(fontWeight: FontWeight.w500),
                                 ),
                                 trailing: ElevatedButton(

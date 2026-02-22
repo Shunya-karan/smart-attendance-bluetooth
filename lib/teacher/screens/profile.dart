@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:smart_attendance_bluetooth/services/firebase_service.dart';
+import 'package:smart_attendance_bluetooth/services/firebase_teacher.dart';
 
 class TeacherProfile extends StatefulWidget {
   const TeacherProfile({super.key});
