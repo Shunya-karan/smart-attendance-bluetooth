@@ -59,10 +59,10 @@ void initState() {
   TeacherBleService.listenAttendance((data) {
     if (data.isEmpty) return;
 
-    final seatNo = data.trim();
+    final rollNo = data.trim();
 
     for (var student in studentsList) {
-      if (student["seatNo"].toString() == seatNo) {
+      if (student["rollNo"].toString() == rollNo) {
         final studentId = student.id;
 
         if (attendanceMap[studentId] == true) return;
@@ -285,7 +285,6 @@ void dispose() {
 
                             // default false if not set
                             bool present = attendanceMap[studentId] ?? false;
-
                             return Card(
                               elevation: 2,
                               child: ListTile(

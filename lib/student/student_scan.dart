@@ -242,12 +242,12 @@ class _StudentScanState extends State<StudentScan> with WidgetsBindingObserver {
     final s = parts[1];
     final time = parts[3];
 
-    final h = int.tryParse(time.substring(0, 2));
-    final m = int.tryParse(time.substring(2, 4));
-    if (h == null || m == null) return const SizedBox();
+    final minutes = int.tryParse(time.substring(0, 2));
+    final seconds = int.tryParse(time.substring(2, 4));
+    if (minutes == null || seconds== null) return const SizedBox();
 
     final now = DateTime.now();
-    final endTime = DateTime(now.year, now.month, now.day, h, m + 1);
+    final endTime = DateTime(now.year, now.month, now.day, now.hour, minutes,seconds+1);
     final remaining = endTime.difference(now);
     final expired = remaining.inSeconds <= 0;
 
