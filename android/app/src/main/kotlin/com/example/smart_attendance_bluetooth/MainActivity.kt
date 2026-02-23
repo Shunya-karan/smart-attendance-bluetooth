@@ -125,12 +125,14 @@ class MainActivity : FlutterActivity() {
         val settings = AdvertiseSettings.Builder()
             .setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_LOW_LATENCY)
             .setTxPowerLevel(AdvertiseSettings.ADVERTISE_TX_POWER_HIGH)
-            .setConnectable(true)
+            .setConnectable(false)
             .build()
 
         val payloadBytes = sessionCode.toByteArray(Charsets.UTF_8)
 
         val data = AdvertiseData.Builder()
+            .setIncludeDeviceName(false)
+            .setIncludeTxPowerLevel(false)
             .addManufacturerData(0x1234, payloadBytes)
             .build()
 
