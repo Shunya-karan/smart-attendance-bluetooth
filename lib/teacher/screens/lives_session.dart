@@ -88,9 +88,6 @@ void initState() {
     setState(() {});
   }
 
-
-
-
 void _startCountdown() {
   _timer?.cancel();
   _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
@@ -162,6 +159,7 @@ void dispose() {
               child: SingleChildScrollView(
                 padding: EdgeInsetsGeometry.all(20),
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     //Details of session
                     Card(
@@ -264,6 +262,12 @@ void dispose() {
 
                     SizedBox(height: 30,),
                     //Student names and Roll numbers
+                    Padding(
+                      padding: const EdgeInsets.only(left: 18.0),
+                      child: Text("Student",
+                      style: Theme.of(context).textTheme.titleMedium,),
+                    ),
+                    SizedBox(height: 10,),
                     StreamBuilder(
                       stream: FirebaseServices.getStudents(widget.className),
                       builder: (context, snapshot) {

@@ -106,6 +106,7 @@ class _StartAttendanceState extends State<StartAttendance> {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
     return Scaffold(
       backgroundColor: Colors.grey[50],
       body: SafeArea(
@@ -134,6 +135,7 @@ class _StartAttendanceState extends State<StartAttendance> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      //bluetooth
                       BluetoothStatusCard(
                         onStatusChanged: (ready) {
                           setState(() {
@@ -143,6 +145,8 @@ class _StartAttendanceState extends State<StartAttendance> {
                       ),
 
                       SizedBox(height: 16,),
+
+                      //session details
                       Card(
                         elevation: 0,
                         shape: RoundedRectangleBorder(
@@ -154,6 +158,7 @@ class _StartAttendanceState extends State<StartAttendance> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
+                              //heading of cards session details
                               Row(
                                 children: [
                                   Container(
@@ -179,6 +184,7 @@ class _StartAttendanceState extends State<StartAttendance> {
 
                               ),
                               SizedBox(height: 24,),
+                              //class
                               StreamBuilder(stream: FirebaseServices.allClasses(),
                                   builder: (context,snapshot) {
                                     if(!snapshot.hasData) return CircularProgressIndicator();
@@ -224,6 +230,7 @@ class _StartAttendanceState extends State<StartAttendance> {
                                     );
                                   }),
                               SizedBox(height: 20,),
+                              //subjects
                               StreamBuilder(
                                   stream: FirebaseServices.Subjects(selectedClassId),
                                   builder: (context,snapshot) {
@@ -258,7 +265,7 @@ class _StartAttendanceState extends State<StartAttendance> {
                                       items: docs.map((doc){
                                         return DropdownMenuItem(
                                             value: doc.id,
-                                            child: Text((doc["name"]).length>20?"${(doc["name"]).substring(0,20)}...":doc["name"],
+                                            child: Text((doc["name"]).length>25||screenWidth<357?"${(doc["name"]).substring(0,15)}...":doc["name"],
                                               style: TextStyle(fontWeight: FontWeight.normal),)
                                         );
                                       }).toList(),
@@ -285,6 +292,7 @@ class _StartAttendanceState extends State<StartAttendance> {
                                     );
                                   }),
                               SizedBox(height: 20,),
+                              //Duration
                               DropdownButtonFormField<int>(
                                 initialValue: selectedDuration,
                                 items:sessionDuration.map((e){
@@ -317,6 +325,7 @@ class _StartAttendanceState extends State<StartAttendance> {
                                 ),
                               ),
                               SizedBox(height: 20,),
+                              //session type
                               Text("Session Type :",
                                 style: Theme.of(context).textTheme.titleSmall,),
                               RadioMenuButton(value:"Lecture" ,
@@ -354,6 +363,8 @@ class _StartAttendanceState extends State<StartAttendance> {
                   ),
                 )
             ),
+
+            //button
             Container(
               height: 100,
               width: double.infinity,
