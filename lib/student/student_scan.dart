@@ -39,7 +39,7 @@ class _StudentScanState extends State<StudentScan> with WidgetsBindingObserver {
   TextEditingController searchController = TextEditingController();
   String searchQuery = "";
   Set<String> markedSessions = {};
-
+  Set<String> markingSessions = {};
   Set<String> expiredHandled = {};
 
   @override
@@ -234,6 +234,7 @@ class _StudentScanState extends State<StudentScan> with WidgetsBindingObserver {
 
   Widget buildSession(BleSession session) {
     final alreadyMarked = markedSessions.contains(session.sessionId);
+    final isMarking = markingSessions.contains(session.sessionId);
 
     final parts = session.sessionId.split('-');
     if (parts.length != 4) return const SizedBox();
@@ -308,13 +309,12 @@ class _StudentScanState extends State<StudentScan> with WidgetsBindingObserver {
           Padding(
             padding: const EdgeInsets.all(8),
             child: ElevatedButton(
-              onPressed: expired || alreadyMarked
+              onPressed: expired || alreadyMarked || isMarking
                   ? null
                   : () async {
-                      if (rollNo.isEmpty) {
-                        showSnack("Roll number not found. Please login again.");
-                        return;
-                      }
+                      setState(() {
+          markingSessions.add(session.sessionId);
+        });
 
                       final success = await bleManager.markAttendance(
                         session: session,
@@ -347,7 +347,7 @@ class _StudentScanState extends State<StudentScan> with WidgetsBindingObserver {
                     },
 
               style: ElevatedButton.styleFrom(
-                backgroundColor: expired || alreadyMarked
+                backgroundColor: expired || alreadyMarked || isMarking
                     ? Colors.grey
                     : Theme.of(context).colorScheme.secondary,
 
@@ -359,7 +359,8 @@ class _StudentScanState extends State<StudentScan> with WidgetsBindingObserver {
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              child: const Text(
+              child: Text(
+                isMarking ? "Marking..." :
                 "Mark Attendance",
                 style: TextStyle(
                   fontSize: 16,
@@ -378,7 +379,6 @@ class _StudentScanState extends State<StudentScan> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     final screenwidth = MediaQuery.of(context).size.width;
-    final screenheight = MediaQuery.of(context).size.height;
 
     double h = screenwidth < 405 ? 110 : 70;
 

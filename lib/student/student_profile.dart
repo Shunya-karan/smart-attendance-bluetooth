@@ -133,7 +133,8 @@ class _StudentProfileState extends State<StudentProfile> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text(a),
+            child: Text(a, style: const TextStyle(color: Colors.red),
+          ),
           ),
         ],
         ),

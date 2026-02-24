@@ -69,22 +69,23 @@ dev_dependencies:
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: assets/logo1.png
+  image_path: assets/logo.png
 #  adaptive_icon_background: "#66F5CA"
 #  adaptive_icon_foreground: assets/logo.png
 
 flutter_native_splash:
   android: true
   ios: true
-  background_image: assets/splashScreen1.png
+  color: "#f5ffff"
+  image: assets/logo1.png
   android_12:
-    image: assets/splashScreen1.png
-    icon_background_color: "#070808"
+    image: assets/logo1.png
+    icon_background_color: "#f5ffff"
 
 flutter:
   assets:
+    - assets/logo.png
     - assets/logo1.png
-    - assets/splashScreen1.png
     - assets/profile.png
   uses-material-design: true
 
