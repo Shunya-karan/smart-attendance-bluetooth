@@ -138,7 +138,7 @@ class MainActivity : FlutterActivity() {
         val settings = AdvertiseSettings.Builder()
             .setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_LOW_LATENCY)
             .setTxPowerLevel(AdvertiseSettings.ADVERTISE_TX_POWER_HIGH)
-            .setConnectable(false)
+            .setConnectable(true)
             .build()
 
         val payloadBytes = sessionCode.toByteArray(Charsets.UTF_8)
@@ -167,17 +167,12 @@ class MainActivity : FlutterActivity() {
     private val gattCallback = object : BluetoothGattServerCallback() {
 
         override fun onConnectionStateChange(
-    device: BluetoothDevice,
-    status: Int,
-    newState: Int
-) {
-    Log.d("BLE", "Device ${device.address} state: $newState")
-
-    if (newState == BluetoothProfile.STATE_CONNECTED) {
-        Log.d("BLE", "Accepting connection from ${device.address}")
-        gattServer?.connect(device, false)
-    }
-}
+            device: BluetoothDevice,
+            status: Int,
+            newState: Int
+        ) {
+            Log.d("BLE", "Device ${device.address} state: $newState")
+        }
 
 
         override fun onCharacteristicWriteRequest(

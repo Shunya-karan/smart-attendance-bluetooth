@@ -56,25 +56,22 @@ void initState() {
 }
 
   void TeacherbleServices() {
-  TeacherBleService.listenAttendance((data) {
-    if (data.isEmpty) return;
+    TeacherBleService.listenAttendance((studentId) {
+      if (studentId.isEmpty) return;
 
-    final rollNo = data.trim();
+      print("📩 Student present: $studentId");
 
-    for (var student in studentsList) {
-      if (student["rollNo"].toString() == rollNo) {
-        final studentId = student.id;
+      if (attendanceMap[studentId] == true) return;
 
-        if (attendanceMap[studentId] == true) return;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
 
         setState(() {
           attendanceMap[studentId] = true;
         });
-        break;
-      }
-    }
-  });
-}
+      });
+    });
+  }
 
 
   Future<void> loadOldAttendance() async {

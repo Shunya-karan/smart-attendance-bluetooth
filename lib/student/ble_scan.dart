@@ -73,6 +73,53 @@ class BleManager {
     await FlutterBluePlus.stopScan();
   }
 
+  // Future<bool> markAttendance({
+  //   required BleSession session,
+  //   required String studentId,
+  // }) async {
+  //   final device = session.scanResult.device;
+  //
+  //   try {
+  //     await stopScan();
+  //
+  //     // connect ONCE
+  //     await device.connect(
+  //       timeout: const Duration(seconds: 10),
+  //       autoConnect: false,
+  //     );
+  //
+  //     await Future.delayed(const Duration(milliseconds: 300));
+  //
+  //     final services = await device.discoverServices();
+  //
+  //     for (final s in services) {
+  //       if (s.uuid == BLE_SERVICE_UUID) {
+  //         for (final c in s.characteristics) {
+  //           if (c.uuid == BLE_CHAR_UUID) {
+  //
+  //             // send studentId
+  //             await c.write(
+  //               studentId.codeUnits,
+  //               withoutResponse: false,
+  //             );
+  //
+  //             return true; // success immediately after write
+  //           }
+  //         }
+  //       }
+  //     }
+
+  //     return false;
+  //   } catch (e) {
+  //     print("WRITE ERROR: $e");
+  //     return false;
+  //   } finally {
+  //     try {
+  //       await device.disconnect();
+  //     } catch (_) {}
+  //   }
+  // }
+
   Future<bool> markAttendance({
     required BleSession session,
     required String studentId,
@@ -80,31 +127,40 @@ class BleManager {
     final device = session.scanResult.device;
 
     try {
+      // 🔴 DO NOT stop scan yet
+      // stopping scan too early causes timeout
+
+      await device.connect(
+        timeout: const Duration(seconds: 12),
+        autoConnect: false,
+      );
+
+      await Future.delayed(const Duration(milliseconds: 400));
+
+      // now stop scan
       await stopScan();
-      await Future.delayed(const Duration(milliseconds: 700));
-
-      await device.disconnect();
-      await Future.delayed(const Duration(milliseconds: 300));
-
-      await Future.delayed(const Duration(milliseconds: 500));
-
-      await device.connect(timeout: const Duration(seconds: 8));
-      await device.requestMtu(512);
 
       final services = await device.discoverServices();
+
       for (final s in services) {
         if (s.uuid == BLE_SERVICE_UUID) {
           for (final c in s.characteristics) {
             if (c.uuid == BLE_CHAR_UUID) {
-              final payload = "$studentId";
-              await c.write(payload.codeUnits, withoutResponse: false);
+
+              await c.write(
+                studentId.codeUnits,
+                withoutResponse: false,
+              );
+
               return true;
             }
           }
         }
       }
+
       return false;
     } catch (e) {
+      print("WRITE ERROR: $e");
       return false;
     } finally {
       try {
