@@ -344,6 +344,9 @@ class _StudentScanState extends State<StudentScan> with WidgetsBindingObserver {
                           "${session.sessionId} | $time",
                         );
                       }
+                      setState(() {
+                        markingSessions.remove(session.sessionId);
+                      });
                     },
 
               style: ElevatedButton.styleFrom(
