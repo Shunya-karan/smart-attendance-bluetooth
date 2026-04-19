@@ -1,55 +1,22 @@
 import 'package:flutter/material.dart';
-import 'teacher/teacher_login.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(const PlaceholderApp());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class PlaceholderApp extends StatelessWidget {
+  const PlaceholderApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return  MaterialApp(
-      title: "Attendance App",
-      debugShowCheckedModeBanner: false,
-      home: TeacherLogin(),
-      theme: ThemeData(
-          fontFamily: GoogleFonts.lato().fontFamily,
-        colorScheme: ColorScheme.fromSeed(
-            seedColor: Colors.teal,
-            primary: Colors.blue,
-            secondary: Colors.green,
-            error: Colors.red,
-        ),
-        appBarTheme: AppBarTheme(
-          titleTextStyle: TextStyle(
-            fontSize: 20,
-            color: Colors.black
+    return const MaterialApp(
+      home: Scaffold(
+        body: Center(
+          child: Text(
+            "Run main_teacher.dart or main_student.dart",
+            style: TextStyle(fontSize: 18),
           ),
         ),
-        textTheme: TextTheme(
-          titleSmall: TextStyle(
-            fontWeight: FontWeight.bold,
-              fontSize: 16
-          ),
-          titleMedium: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 20
-          ),
-          titleLarge: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 35
-          )
-        ),
-        inputDecorationTheme: InputDecorationTheme(
-          hintStyle: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 16
-          ),
-        ),
-        useMaterial3: true
       ),
     );
   }

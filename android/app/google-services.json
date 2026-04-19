@@ -1,0 +1,67 @@
+{
+  "project_info": {
+    "project_number": "597336221623",
+    "project_id": "smart-attendance-proximity",
+    "storage_bucket": "smart-attendance-proximity.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:597336221623:android:9a2794cc1f89afc56baa32",
+        "android_client_info": {
+          "package_name": "com.example.smart_attendance_bluetooth"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDYJn4fNrLb2_dFbxT8ZfXWs9rg6iy6hY4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:597336221623:android:8b65625ac5dfaf386baa32",
+        "android_client_info": {
+          "package_name": "com.example.smart_attendance_bluetooth.student"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDYJn4fNrLb2_dFbxT8ZfXWs9rg6iy6hY4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:597336221623:android:f2097ffed32fb3a76baa32",
+        "android_client_info": {
+          "package_name": "com.example.smart_attendance_bluetooth.teacher"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDYJn4fNrLb2_dFbxT8ZfXWs9rg6iy6hY4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
